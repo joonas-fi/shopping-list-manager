@@ -1,0 +1,28 @@
+name: Build
+
+on: [push]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Login to GitHub Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Build
+      run: |
+        curl --fail --location --no-progress-meter --output bob https://function61.com/go/turbobob-latest-stable-linux-amd64 && chmod +x bob
+        ./bob build in-ci-autodetect-settings
+
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,28 @@
+{
+	"for_description_of_this_file_see": "https://github.com/function61/turbobob",
+	"version_major": 1,
+	"project_name": "shopping-list-manager",
+	"project_emoji_icon": "",
+	"builders": [
+		{
+			"name": "default",
+			"uses": "docker://fn61/buildkit-golang:20240405_0714_856c11bd",
+			"commands": {
+				"build": ["build-go-project.sh", "--directory=cmd/shopping-list-manager/", "--binary-basename=shopping-list-manager"],
+				"dev": ["bash"]
+			},
+			"mount_destination": "/workspace",
+			"workdir": "/workspace"
+		}
+	],
+	"os_arches": {
+		"linux-amd64": true
+	},
+	"docker_images": [
+		{
+			"image": "ghcr.io/joonas-fi/shopping-list-manager",
+			"dockerfile_path": "Dockerfile",
+			"tag_latest": true
+		}
+	]
+}

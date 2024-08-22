@@ -1,0 +1,21 @@
+<!doctype html>
+<html>
+<head>
+	<title>Shopping list manager</title>
+</head>
+<body>
+
+<h1>Record missing barcode</h1>
+
+<p>{{.Barcode}}</p>
+
+<form action="">
+	<a href="https://google.com/search?q={{.Barcode}}" target="_blank">Websearch</a>
+
+	<input type="hidden" name="barcode" value="{{.Barcode}}" />
+	<input type="text" name="name" placeholder="Teddy bear" />
+	<input type="submit" value="Record" />
+</form>
+
+</body>
+</html>
