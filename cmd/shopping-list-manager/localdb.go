@@ -1,6 +1,9 @@
 package main
 
 import (
+	"errors"
+	"io/fs"
+
 	"github.com/function61/gokit/encoding/jsonfile"
 )
 
@@ -12,7 +15,14 @@ type LocalDB map[string]string
 
 func loadDB() (*LocalDB, error) {
 	db := &LocalDB{}
-	return db, jsonfile.ReadDisallowUnknownFields(localDBName, db)
+	if err := jsonfile.ReadDisallowUnknownFields(localDBName, db); err != nil {
+		if errors.Is(err, fs.ErrNotExist) { // allowed to not exist - start from empty state then
+			return db, nil
+		} else { // some other error
+			return nil, err
+		}
+	}
+	return db, nil
 }
 
 func saveDB(db LocalDB) error {
