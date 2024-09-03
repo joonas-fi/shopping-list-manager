@@ -9,6 +9,7 @@ import (
 	"os"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/function61/gokit/app/cli"
@@ -193,6 +194,11 @@ func resolveProductNameByBarcode(ctx context.Context, barcode string, resolveDB 
 		return productName, nil
 	}
 	logex.Levels(logger).Info.Println("localDBresolveProductNameByBarcode: not found. continuing with web search")
+
+	// https://en.wikipedia.org/wiki/List_of_GS1_country_codes
+	if strings.HasPrefix(barcode, "2") {
+		return withErr(errors.New("barcode begins with 2 which implies store-internal barcode - bailing out"))
+	}
 
 	if l := len(barcode); l < 10 { // EAN should be 13. UPC should be 12.
 		// store-internal barcodes (like Lidl) are not very searchable as they are too short numbers
