@@ -43,6 +43,16 @@ flowchart TD
 ```
 
 
+How to run
+----------
+
+First source `app.env` (which has the ENV variables from the configuration section), then:
+
+```shell
+docker run --rm -it --device /dev/input/by-id/usb-NT_USB_Keyboard-event-kbd:/dev/barcode-reader -e OPENAI_API_KEY -e TODOIST_TOKEN -e TODOIST_PROJECT_ID -e GOOGLE_SEARCH_CUSTOM_SEARCH_ENGINE_ID -e GOOGLE_SEARCH_API_KEY ghcr.io/joonas-fi/shopping-list-manager:latest
+```
+
+
 Hardware
 --------
 
