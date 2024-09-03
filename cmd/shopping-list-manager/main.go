@@ -14,6 +14,7 @@ import (
 	"github.com/function61/gokit/app/cli"
 	"github.com/function61/gokit/app/dynversion"
 	"github.com/function61/gokit/app/evdev"
+	. "github.com/function61/gokit/builtin"
 	"github.com/function61/gokit/log/logex"
 	"github.com/function61/gokit/os/osutil"
 	"github.com/function61/gokit/sync/taskrunner"
@@ -40,10 +41,7 @@ func main() {
 				return err
 			}
 
-			barcodeReaderDevicePath, err := osutil.GetenvRequired("BARCODE_READER")
-			if err != nil {
-				return err
-			}
+			barcodeReaderDevicePath := FirstNonEmpty(os.Getenv("BARCODE_READER"), "/dev/barcode-reader")
 
 			barcodeReader, close_, err := evdev.Open(barcodeReaderDevicePath)
 			if err != nil {
