@@ -5,7 +5,6 @@ package main
 import (
 	"context"
 	"embed"
-	"errors"
 	"fmt"
 	"html/template"
 	"log"
@@ -21,7 +20,7 @@ import (
 //go:embed *.html
 var templateFiles embed.FS
 
-func webUI(ctx context.Context, todo *todoist.Client, _ *log.Logger) error {
+func webUI(ctx context.Context, todo *todoist.Client, logger *log.Logger) error {
 	templates, err := template.ParseFS(templateFiles, "*.html")
 	if err != nil {
 		return err
@@ -34,6 +33,22 @@ func webUI(ctx context.Context, todo *todoist.Client, _ *log.Logger) error {
 	routes.PathPrefix("/shopping-list-manager").HandlerFunc(httputils.WrapWithErrorHandling(func(w http.ResponseWriter, r *http.Request) error {
 		barcode := r.URL.Query().Get("barcode")
 		productName := r.URL.Query().Get("name")
+
+		beep := r.URL.Query().Get("beep")
+
+		if beep != "" {
+			output := func() string {
+				if err := handleBeep(r.Context(), beep, logger, todo); err != nil {
+					return err.Error()
+				} else {
+					return "ok"
+				}
+			}()
+
+			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+			_, _ = w.Write([]byte(output))
+			return nil
+		}
 
 		if barcode != "" && productName != "" {
 			if err := recordMissAndStoreToLocalDB(r.Context(), barcode, productName, todo); err != nil {
@@ -49,12 +64,16 @@ func webUI(ctx context.Context, todo *todoist.Client, _ *log.Logger) error {
 			return err
 		}
 
-		if len(misses) == 0 {
-			return errors.New("there are no missing barcodes")
-		}
+		missed := func() string {
+			if len(misses) > 0 {
+				return misses[0]
+			} else {
+				return ""
+			}
+		}()
 
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		return templates.ExecuteTemplate(w, "index.html", struct{ Barcode string }{misses[0]})
+		return templates.ExecuteTemplate(w, "index.html", struct{ Barcode string }{missed})
 	}))
 
 	srv := &http.Server{

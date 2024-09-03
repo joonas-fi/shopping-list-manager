@@ -5,17 +5,28 @@
 </head>
 <body>
 
-<h1>Record missing barcode</h1>
-
-<p>{{.Barcode}}</p>
+<h1>Scan a barcode</h1>
 
 <form action="">
-	<a href="https://google.com/search?q={{.Barcode}}" target="_blank">Websearch</a>
-
-	<input type="hidden" name="barcode" value="{{.Barcode}}" />
-	<input type="text" name="name" placeholder="Teddy bear" />
-	<input type="submit" value="Record" />
+	<input type="text" name="beep" placeholder="5012345678900" />
+	<input type="submit" value="Scan" />
 </form>
+
+<h1>Record missing barcode</h1>
+
+{{if .Barcode}}
+	<p>{{.Barcode}}</p>
+
+	<form action="">
+		<a href="https://google.com/search?q={{.Barcode}}" target="_blank">Websearch</a>
+
+		<input type="hidden" name="barcode" value="{{.Barcode}}" />
+		<input type="text" name="name" placeholder="Teddy bear" />
+		<input type="submit" value="Record" />
+	</form>
+{{else}}
+	<p>No unknown barcodes found!</p>
+{{end}}
 
 </body>
 </html>
