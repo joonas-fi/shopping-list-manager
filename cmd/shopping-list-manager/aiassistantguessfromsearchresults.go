@@ -25,7 +25,7 @@ func useAIAssistantToGuessProductNameFromSearchResults(ctx context.Context, sear
 
 	input := strings.Join(searchResults, "\n")
 
-	prompt := fmt.Sprintf("I have list of web search result page titles (one per line), try to guess what is the product name:\n```\n%s\n``` Respond with only the product name. If you don't have a guess, start you answer with the string `ERROR:`.", input)
+	prompt := fmt.Sprintf("I have list of web search result page titles (one per line), try to guess what is the product name:\n```\n%s\n``` If search results are in multiple languages, prefer Finnish and then English. Respond with only the product name. If you don't have a guess, start you answer with the string `ERROR:`.", input)
 
 	res, err := openai.ChatCompletion(ctx, openai.SimpleChatCompletionReq(prompt), openaiApiKey)
 	if err != nil {
