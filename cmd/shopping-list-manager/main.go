@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/url"
 	"os"
 	"regexp"
 	"strconv"
@@ -145,9 +146,9 @@ func handleBeep(ctx context.Context, barcode string, logger *log.Logger, todo *t
 		productName = taskNameForUnnamedBarcode(barcode)
 	}
 
-	logger.Printf("adding '%s'", productName)
+	logex.Levels(logger).Info.Printf("adding '%s'", productName)
 
-	if err := addProductNameToShoppingList(ctx, productName, todo); err != nil {
+	if err := addProductNameToShoppingList(ctx, productName, createDescriptionMarkdown(barcode), todo); err != nil {
 		return err
 	}
 
@@ -230,7 +231,7 @@ func resolveProductNameByBarcode(ctx context.Context, barcode string, resolveDB 
 	return productNameGuess, nil
 }
 
-func addProductNameToShoppingList(ctx context.Context, productName string, todo *todoist.Client) error {
+func addProductNameToShoppingList(ctx context.Context, productName string, description string, todo *todoist.Client) error {
 	projectID, err := getTodoistProjectID()
 	if err != nil {
 		return err
@@ -247,8 +248,9 @@ func addProductNameToShoppingList(ctx context.Context, productName string, todo 
 	}
 
 	return todo.CreateTask(ctx, todoist.Task{
-		Content:   productName,
-		ProjectID: strconv.Itoa(int(projectID)),
+		Content:     productName,
+		Description: description,
+		ProjectID:   strconv.Itoa(int(projectID)),
 	})
 }
 
@@ -275,6 +277,14 @@ func listMisses(ctx context.Context, todo *todoist.Client) ([]string, error) {
 
 func taskNameForUnnamedBarcode(barcode string) string {
 	return fmt.Sprintf("unrecognized barcode[%s]", barcode)
+}
+
+// use as description (which supports Markdown) a search link for the barcode so:
+// 1. we have access to the barcode in the task
+// 2. if the looked-up product name for the barcode happens to be wrong, we have quick access to search results
+func createDescriptionMarkdown(barcode string) string {
+	searchURL := fmt.Sprintf("https://google.com/search?q=%s", url.QueryEscape(barcode))
+	return fmt.Sprintf("Barcode %s\n[Search](%s)", barcode, searchURL)
 }
 
 var identifyMissRe = regexp.MustCompile(`^unrecognized barcode\[([0-9]+)\]$`)
