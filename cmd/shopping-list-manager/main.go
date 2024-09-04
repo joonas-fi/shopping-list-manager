@@ -124,7 +124,7 @@ func main() {
 				return err
 			}
 
-			return recordMissAndStoreToLocalDB(ctx, barcode, productName, todo)
+			return recordMissAndStoreToLocalDB(ctx, barcode, productDetails{Name: productName}, todo)
 		}),
 	})
 
@@ -138,23 +138,25 @@ func handleBeep(ctx context.Context, barcode string, logger *log.Logger, todo *t
 		return err
 	}
 
-	productName, err := resolveProductNameByBarcode(ctx, barcode, db, todo, logger)
+	details, err := resolveProductDetailsByBarcode(ctx, barcode, db, todo, logger)
 	if err != nil {
 		logex.Levels(logger).Error.Printf("unable to resolve '%s' to product name: %v", barcode, err)
 
-		productName = taskNameForUnnamedBarcode(barcode)
+		details = &productDetails{
+			Name: taskNameForUnnamedBarcode(barcode),
+		}
 	}
 
-	logex.Levels(logger).Info.Printf("adding '%s'", productName)
+	logex.Levels(logger).Info.Printf("adding '%s'", details.Name)
 
-	if err := addProductNameToShoppingList(ctx, productName, createDescriptionMarkdown(barcode), todo); err != nil {
+	if err := addProductNameToShoppingList(ctx, details.Name, createDescriptionMarkdown(barcode, *details), todo); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func recordMissAndStoreToLocalDB(ctx context.Context, barcode string, productName string, todo *todoist.Client) error {
+func recordMissAndStoreToLocalDB(ctx context.Context, barcode string, product productDetails, todo *todoist.Client) error {
 	projectID, err := getTodoistProjectID()
 	if err != nil {
 		return err
@@ -169,7 +171,7 @@ func recordMissAndStoreToLocalDB(ctx context.Context, barcode string, productNam
 
 	// rename current tasks that refer to this unnamed task
 	for _, missing := range lo.Filter(existingTasks, func(t todoist.Task, _ int) bool { return t.Content == taskNameForUnnamed }) {
-		missing.Content = productName
+		missing.Content = product.Name
 
 		if err := todo.UpdateTask(ctx, missing); err != nil {
 			return err
@@ -181,19 +183,21 @@ func recordMissAndStoreToLocalDB(ctx context.Context, barcode string, productNam
 		return err
 	}
 
-	(*db)[barcode] = productName
+	(*db)[barcode] = product
 
 	// now next time we will remember the proper name for this
 	return saveDB(*db)
 }
 
-func resolveProductNameByBarcode(ctx context.Context, barcode string, resolveDB *LocalDB, todo *todoist.Client, logger *log.Logger) (string, error) {
-	withErr := func(err error) (string, error) { return "", fmt.Errorf("resolveProductNameByBarcode: %w", err) }
-
-	if productName, found := localDBresolveProductNameByBarcode(barcode, resolveDB); found {
-		return productName, nil
+func resolveProductDetailsByBarcode(ctx context.Context, barcode string, resolveDB *LocalDB, todo *todoist.Client, logger *log.Logger) (*productDetails, error) {
+	withErr := func(err error) (*productDetails, error) {
+		return nil, fmt.Errorf("resolveProductDetailsByBarcode: %w", err)
 	}
-	logex.Levels(logger).Info.Println("localDBresolveProductNameByBarcode: not found. continuing with web search")
+
+	if product, found := localDBresolveProductByBarcode(barcode, resolveDB); found {
+		return &product, nil
+	}
+	logex.Levels(logger).Info.Println("localDBresolveProductByBarcode: not found. continuing with web search")
 
 	// https://en.wikipedia.org/wiki/List_of_GS1_country_codes
 	if strings.HasPrefix(barcode, "2") {
@@ -227,12 +231,17 @@ func resolveProductNameByBarcode(ctx context.Context, barcode string, resolveDB 
 		return withErr(err)
 	}
 
-	if err := recordMissAndStoreToLocalDB(ctx, barcode, productNameGuess, todo); err != nil {
+	product := productDetails{
+		Name: productNameGuess,
+		Link: barcodeSearchResults.Items[0].Link,
+	}
+
+	if err := recordMissAndStoreToLocalDB(ctx, barcode, product, todo); err != nil {
 		// this is not critical error in context of this function's task
 		logex.Levels(logger).Error.Println(err.Error())
 	}
 
-	return productNameGuess, nil
+	return &product, nil
 }
 
 func addProductNameToShoppingList(ctx context.Context, productName string, description string, todo *todoist.Client) error {
@@ -286,9 +295,9 @@ func taskNameForUnnamedBarcode(barcode string) string {
 // use as description (which supports Markdown) a search link for the barcode so:
 // 1. we have access to the barcode in the task
 // 2. if the looked-up product name for the barcode happens to be wrong, we have quick access to search results
-func createDescriptionMarkdown(barcode string) string {
+func createDescriptionMarkdown(barcode string, product productDetails) string {
 	searchURL := fmt.Sprintf("https://google.com/search?q=%s", url.QueryEscape(barcode))
-	return fmt.Sprintf("Barcode %s\n[Search](%s)", barcode, searchURL)
+	return fmt.Sprintf("Barcode %s\n[Link](%s)\n[Search](%s)", barcode, product.Link, searchURL)
 }
 
 var identifyMissRe = regexp.MustCompile(`^unrecognized barcode\[([0-9]+)\]$`)

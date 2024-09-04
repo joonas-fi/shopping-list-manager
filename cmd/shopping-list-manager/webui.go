@@ -51,7 +51,7 @@ func webUI(ctx context.Context, todo *todoist.Client, logger *log.Logger) error 
 		}
 
 		if barcode != "" && productName != "" {
-			if err := recordMissAndStoreToLocalDB(r.Context(), barcode, productName, todo); err != nil {
+			if err := recordMissAndStoreToLocalDB(r.Context(), barcode, productDetails{Name: productName}, todo); err != nil {
 				return err
 			}
 

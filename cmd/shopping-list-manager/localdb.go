@@ -11,7 +11,12 @@ const (
 	localDBName = "barcode-db.json"
 )
 
-type LocalDB map[string]string
+type productDetails struct {
+	Name string `json:"name"`
+	Link string `json:"link"`
+}
+
+type LocalDB map[string]productDetails
 
 func loadDB() (*LocalDB, error) {
 	db := &LocalDB{}
@@ -29,7 +34,7 @@ func saveDB(db LocalDB) error {
 	return jsonfile.Write(localDBName, db)
 }
 
-func localDBresolveProductNameByBarcode(barcode string, resolveDB *LocalDB) (string, bool) {
-	productName, found := (*resolveDB)[barcode]
-	return productName, found
+func localDBresolveProductByBarcode(barcode string, resolveDB *LocalDB) (productDetails, bool) {
+	details, found := (*resolveDB)[barcode]
+	return details, found
 }

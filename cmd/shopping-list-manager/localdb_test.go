@@ -6,18 +6,18 @@ import (
 	"github.com/function61/gokit/testing/assert"
 )
 
-func TestLocalDBresolveProductNameByBarcode(t *testing.T) {
+func TestLocalDBresolveProductByBarcode(t *testing.T) {
 	testDB := &LocalDB{
-		"6408180733659": "Vaasan Voimallus Kaurasämpylä kaurainen sämpylä 480 g 8 kpl",
+		"6408180733659": productDetails{Name: "Vaasan Voimallus Kaurasämpylä kaurainen sämpylä 480 g 8 kpl"},
 	}
 
 	resolve := func(barcode string) string {
-		productName, found := localDBresolveProductNameByBarcode(barcode, testDB)
+		product, found := localDBresolveProductByBarcode(barcode, testDB)
 		if !found {
 			return "not found"
 		}
 
-		return productName
+		return product.Name
 	}
 
 	assert.Equal(t, resolve("123"), "not found")
