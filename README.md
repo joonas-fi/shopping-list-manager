@@ -72,6 +72,7 @@ You'll need to configure ENV variables:
 - `TODOIST_PROJECT_ID`
 - `GOOGLE_SEARCH_CUSTOM_SEARCH_ENGINE_ID`
 - `GOOGLE_SEARCH_API_KEY` (get [here](https://developers.google.com/custom-search/v1/overview))
+- `WEBAPP_BASEURL` (optional) base URL of the web app (so we can make links back to it)
 
 
 Resolving unknown barcodes

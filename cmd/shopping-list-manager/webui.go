@@ -19,6 +19,10 @@ import (
 //go:embed *.html
 var templateFiles embed.FS
 
+const (
+	appHomeRoute = "/shopping-list-manager/"
+)
+
 func webUI(ctx context.Context, todo *todoist.Client, logger *log.Logger) error {
 	templates, err := template.ParseFS(templateFiles, "*.html")
 	if err != nil {
@@ -29,7 +33,7 @@ func webUI(ctx context.Context, todo *todoist.Client, logger *log.Logger) error 
 	routes.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/shopping-list-manager/", http.StatusFound)
 	})
-	routes.HandleFunc("/shopping-list-manager/", httputils.WrapWithErrorHandling(func(w http.ResponseWriter, r *http.Request) error {
+	routes.HandleFunc(appHomeRoute, httputils.WrapWithErrorHandling(func(w http.ResponseWriter, r *http.Request) error {
 		barcode := r.URL.Query().Get("barcode")
 		productName := r.URL.Query().Get("name")
 

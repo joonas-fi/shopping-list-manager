@@ -142,7 +142,14 @@ func handleBeep(ctx context.Context, barcode string, logger *log.Logger, todo *t
 	if err != nil {
 		logex.Levels(logger).Error.Printf("unable to resolve '%s' to product name: %v", barcode, err)
 
-		details = Pointer(newProductDetails(taskNameForUnnamedBarcode(barcode), ""))
+		// have the unrecognized product's link point to the web UI, so the user can fill in the right product name.
+		linkToWebui := ""
+		if baseURL := os.Getenv("WEBAPP_BASEURL"); baseURL != "" {
+			// "https://localhost" + "/shopping-list-manager/"
+			linkToWebui = baseURL + appHomeRoute
+		}
+
+		details = Pointer(newProductDetails(taskNameForUnnamedBarcode(barcode), linkToWebui))
 	} else { // found
 		details.LastScanned = Pointer(time.Now().UTC())
 
