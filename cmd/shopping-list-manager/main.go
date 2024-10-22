@@ -124,7 +124,7 @@ func main() {
 				return err
 			}
 
-			return recordMissAndStoreToLocalDB(ctx, barcode, productDetails{Name: productName}, todo)
+			return recordMissAndStoreToLocalDB(ctx, barcode, newProductDetails(productName, ""), todo)
 		}),
 	})
 
@@ -142,9 +142,7 @@ func handleBeep(ctx context.Context, barcode string, logger *log.Logger, todo *t
 	if err != nil {
 		logex.Levels(logger).Error.Printf("unable to resolve '%s' to product name: %v", barcode, err)
 
-		details = &productDetails{
-			Name: taskNameForUnnamedBarcode(barcode),
-		}
+		details = Pointer(newProductDetails(taskNameForUnnamedBarcode(barcode), ""))
 	}
 
 	logex.Levels(logger).Info.Printf("adding '%s'", details.Name)
@@ -231,10 +229,7 @@ func resolveProductDetailsByBarcode(ctx context.Context, barcode string, resolve
 		return withErr(err)
 	}
 
-	product := productDetails{
-		Name: productNameGuess,
-		Link: barcodeSearchResults.Items[0].Link,
-	}
+	product := newProductDetails(productNameGuess, barcodeSearchResults.Items[0].Link)
 
 	if err := recordMissAndStoreToLocalDB(ctx, barcode, product, todo); err != nil {
 		// this is not critical error in context of this function's task
@@ -320,4 +315,8 @@ func getTodoistProjectID() (int64, error) {
 	}
 
 	return int64(projectID), nil
+}
+
+func newProductDetails(productName string, link string) productDetails {
+	return productDetails{Name: productName, Link: link, FirstScanned: Pointer(time.Now().UTC())}
 }

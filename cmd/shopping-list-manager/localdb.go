@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"io/fs"
+	"time"
 
 	"github.com/function61/gokit/encoding/jsonfile"
 )
@@ -12,8 +13,9 @@ const (
 )
 
 type productDetails struct {
-	Name string `json:"name"`
-	Link string `json:"link"`
+	Name         string     `json:"name"`
+	Link         string     `json:"link"`
+	FirstScanned *time.Time `json:"first_scanned"`
 }
 
 type LocalDB map[string]productDetails
