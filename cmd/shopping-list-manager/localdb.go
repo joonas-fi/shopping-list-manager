@@ -16,6 +16,7 @@ type productDetails struct {
 	Name         string     `json:"name"`
 	Link         string     `json:"link"`
 	FirstScanned *time.Time `json:"first_scanned"`
+	LastScanned  *time.Time `json:"last_scanned"`
 }
 
 type LocalDB map[string]productDetails

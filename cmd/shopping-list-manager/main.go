@@ -143,6 +143,14 @@ func handleBeep(ctx context.Context, barcode string, logger *log.Logger, todo *t
 		logex.Levels(logger).Error.Printf("unable to resolve '%s' to product name: %v", barcode, err)
 
 		details = Pointer(newProductDetails(taskNameForUnnamedBarcode(barcode), ""))
+	} else { // found
+		details.LastScanned = Pointer(time.Now().UTC())
+
+		(*db)[barcode] = *details
+
+		if err := saveDB(*db); err != nil {
+			return err
+		}
 	}
 
 	logex.Levels(logger).Info.Printf("adding '%s'", details.Name)
