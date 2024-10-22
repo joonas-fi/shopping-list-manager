@@ -1,8 +1,6 @@
 github.com/cpuguy83/go-md2man/v2 v2.0.2/go.mod h1:tgQtvFlXSQOSOSIRvRPT7W67SCa46tRHOmNcaadrF8o=
 github.com/function61/gokit v0.0.0-20240419102346-a5f721139a62 h1:COUqRRf8I+PpzfrndXgyUtJMxg+mxVFs+sjheSXDORA=
 github.com/function61/gokit v0.0.0-20240419102346-a5f721139a62/go.mod h1:sJY957+7ush4oj4ElOMhUFaFIriAFNAGYzVh2tFJNy0=
-github.com/gorilla/mux v1.8.0 h1:i40aqfkR1h2SlN9hojwV5ZA91wcXFOvkdNIeFDP5koI=
-github.com/gorilla/mux v1.8.0/go.mod h1:DVbg23sWSpFRCP0SfiEN6jmj59UnW/n46BH5rLB71So=
 github.com/inconshreveable/mousetrap v1.0.1 h1:U3uMjPSQEBMNp1lFxmllqCPM6P5u/Xq7Pgzkat/bFNc=
 github.com/inconshreveable/mousetrap v1.0.1/go.mod h1:vpF70FUmC8bwa3OWnCshd2FqLfsEA9PFc4w1p2J65bw=
 github.com/pkg/xattr v0.4.4 h1:FSoblPdYobYoKCItkqASqcrKCxRn9Bgurz0sCBwzO5g=

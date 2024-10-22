@@ -1,10 +1,9 @@
 module github.com/joonas-fi/shopping-list-manager
 
-go 1.18
+go 1.22
 
 require (
 	github.com/function61/gokit v0.0.0-20240419102346-a5f721139a62
-	github.com/gorilla/mux v1.8.0
 	github.com/samber/lo v1.47.0
 	github.com/spf13/cobra v1.6.1
 )

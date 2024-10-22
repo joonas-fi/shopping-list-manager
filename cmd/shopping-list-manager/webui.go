@@ -13,7 +13,6 @@ import (
 
 	. "github.com/function61/gokit/builtin"
 	"github.com/function61/gokit/net/http/httputils"
-	"github.com/gorilla/mux"
 	"github.com/joonas-fi/shopping-list-manager/pkg/todoist"
 )
 
@@ -26,11 +25,11 @@ func webUI(ctx context.Context, todo *todoist.Client, logger *log.Logger) error 
 		return err
 	}
 
-	routes := mux.NewRouter()
+	routes := http.NewServeMux()
 	routes.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/shopping-list-manager", http.StatusFound)
+		http.Redirect(w, r, "/shopping-list-manager/", http.StatusFound)
 	})
-	routes.PathPrefix("/shopping-list-manager").HandlerFunc(httputils.WrapWithErrorHandling(func(w http.ResponseWriter, r *http.Request) error {
+	routes.HandleFunc("/shopping-list-manager/", httputils.WrapWithErrorHandling(func(w http.ResponseWriter, r *http.Request) error {
 		barcode := r.URL.Query().Get("barcode")
 		productName := r.URL.Query().Get("name")
 
