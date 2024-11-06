@@ -2,6 +2,8 @@
 
 Listen for barcode scans from a barcode reader and add their product names to shopping list
 
+![](docs/logo.webp)
+
 
 Overview
 --------
