@@ -49,6 +49,8 @@ func readBarcodes(ctx context.Context, barcodeReader *evdev.Device, beep chan<- 
 				}
 
 				codeBuffer = ""
+			} else if isIgnorableKey(keyCode) {
+				logger.Printf("ignoring %s", keyCode.String())
 			} else {
 				// taking advantage of the fact that barcode symbology (0-9a-z and so on) the strings
 				// tend to have length of 1 and represent exactly the symbol we're interested in
@@ -56,4 +58,24 @@ func readBarcodes(ctx context.Context, barcodeReader *evdev.Device, beep chan<- 
 			}
 		}
 	}
+}
+
+func isIgnorableKey(keyCode evdev.KeyOrButton) bool {
+	/*
+	   observation: if system (not just this barcode reader input device) has caps lock enabled, and
+	   barcode reader sends 1234 we seem to get "<capslock>1234<enter>" so the capslock seems to be synthesized
+
+	   ChatGPT answer:
+
+	   Q: Why does Linux evdev device emit capslock event for each scanned barcode if there is capslock turned on in the system?
+
+	   A: The behavior you're describing with the evdev input system in Linux—where a caps lock event is emitted with each scanned barcode if caps lock is turned on—can occur due to a few key reasons tied to how the input system and barcode scanners interact:
+
+	   1. Caps Lock Behavior with Barcode Scanners
+	   Most barcode scanners emulate a keyboard to send scanned data. When caps lock is enabled on the system, the scanner, acting as a keyboard, adheres to the keyboard state. This can cause:
+
+	   Uppercase/Lowercase Character Issue: Scanners often send keycodes directly for each character, and with caps lock on, the characters could be unexpectedly uppercase or lowercase, depending on the scanner's configuration.
+	   Explicit Keycode Emission: Some scanners may explicitly emit a caps lock state before or after the scan to ensure consistent character output. This may be interpreted by evdev as caps lock events.
+	*/
+	return keyCode == evdev.KeyCAPSLOCK
 }
