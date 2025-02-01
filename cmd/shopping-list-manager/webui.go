@@ -41,7 +41,7 @@ func webUI(ctx context.Context, todo *todoist.Client, logger *log.Logger) error 
 
 		if beep != "" {
 			output := func() string {
-				if err := handleBeep(r.Context(), beep, logger, todo); err != nil {
+				if _, err := handleBeep(r.Context(), beep, logger, todo); err != nil {
 					return err.Error()
 				} else {
 					return "ok"

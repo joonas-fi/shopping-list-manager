@@ -20,6 +20,7 @@ import (
 	"github.com/function61/gokit/log/logex"
 	"github.com/function61/gokit/os/osutil"
 	"github.com/function61/gokit/sync/taskrunner"
+	"github.com/joonas-fi/home-audio/pkg/homeaudioclient"
 	"github.com/joonas-fi/shopping-list-manager/pkg/googlesearch"
 	"github.com/joonas-fi/shopping-list-manager/pkg/todoist"
 	"github.com/samber/lo"
@@ -63,13 +64,31 @@ func main() {
 				return webUI(ctx, todo, logger)
 			})
 
+			homeAudio := homeaudioclient.New(homeaudioclient.HomeFn61)
+
 			for {
 				select {
 				case err := <-tasks.Done():
 					return err
 				case barcode := <-beep:
-					if err := handleBeep(ctx, barcode, logger, todo); err != nil {
-						logex.Levels(logger).Error.Println(err.Error())
+					wasUnrecognized, err := handleBeep(ctx, barcode, logger, todo)
+
+					audioFeedback := func() string {
+						if err != nil {
+							logex.Levels(logger).Error.Println(err.Error())
+
+							return "Error handling scanned barcode"
+						} else {
+							if wasUnrecognized {
+								return "Item added but name is unrecognized"
+							} else {
+								return "Item added"
+							}
+						}
+					}()
+
+					if err := homeAudio.Speak(ctx, audioFeedback); err != nil {
+						slog.Error("Home audio", "err", err)
 					}
 				}
 			}
@@ -85,7 +104,8 @@ func main() {
 			if err != nil {
 				return err
 			}
-			return handleBeep(ctx, args[0], logger, todo)
+			_, err = handleBeep(ctx, args[0], logger, todo)
+			return err
 		}),
 	})
 
@@ -132,42 +152,53 @@ func main() {
 	osutil.ExitIfError(app.Execute())
 }
 
-func handleBeep(ctx context.Context, barcode string, logger *log.Logger, todo *todoist.Client) error {
+func handleBeep(ctx context.Context, barcode string, logger *log.Logger, todo *todoist.Client) (bool, error) {
+	withErr := func(err error) (bool, error) { return true, fmt.Errorf("handleBeep: %w", err) }
+
 	// better reload this on every beep so that if DB has been updated, the changes are reflected
 	db, err := loadDB()
 	if err != nil {
-		return err
+		return withErr(err)
 	}
 
-	details, err := resolveProductDetailsByBarcode(ctx, barcode, db, todo, logger)
+	details, wasUnrecognized, err := func() (productDetails, bool, error) {
+		details, err := resolveProductDetailsByBarcode(ctx, barcode, db, todo, logger)
+		if err != nil {
+			logex.Levels(logger).Error.Printf("unable to resolve '%s' to product name: %v", barcode, err)
+
+			// have the unrecognized product's link point to the web UI, so the user can fill in the right product name.
+			linkToWebui := ""
+			if baseURL := os.Getenv("WEBAPP_BASEURL"); baseURL != "" {
+				// "https://localhost" + "/shopping-list-manager/"
+				linkToWebui = baseURL + appHomeRoute
+			}
+
+			details = Pointer(newProductDetails(taskNameForUnnamedBarcode(barcode), linkToWebui))
+
+			return *details, true, nil
+		} else { // found
+			details.LastScanned = Pointer(time.Now().UTC())
+
+			(*db)[barcode] = *details
+
+			if err := saveDB(*db); err != nil {
+				return *details, false, err
+			}
+
+			return *details, false, nil
+		}
+	}()
 	if err != nil {
-		logex.Levels(logger).Error.Printf("unable to resolve '%s' to product name: %v", barcode, err)
-
-		// have the unrecognized product's link point to the web UI, so the user can fill in the right product name.
-		linkToWebui := ""
-		if baseURL := os.Getenv("WEBAPP_BASEURL"); baseURL != "" {
-			// "https://localhost" + "/shopping-list-manager/"
-			linkToWebui = baseURL + appHomeRoute
-		}
-
-		details = Pointer(newProductDetails(taskNameForUnnamedBarcode(barcode), linkToWebui))
-	} else { // found
-		details.LastScanned = Pointer(time.Now().UTC())
-
-		(*db)[barcode] = *details
-
-		if err := saveDB(*db); err != nil {
-			return err
-		}
+		return withErr(err)
 	}
 
 	logex.Levels(logger).Info.Printf("adding '%s'", details.Name)
 
-	if err := addProductNameToShoppingList(ctx, details.Name, createDescriptionMarkdown(barcode, *details), todo); err != nil {
-		return err
+	if err := addProductNameToShoppingList(ctx, details.Name, createDescriptionMarkdown(barcode, details), todo); err != nil {
+		return withErr(err)
 	}
 
-	return nil
+	return wasUnrecognized, nil
 }
 
 func recordMissAndStoreToLocalDB(ctx context.Context, barcode string, product productDetails, todo *todoist.Client) error {
