@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/url"
 	"os"
 	"regexp"
@@ -52,7 +53,7 @@ func main() {
 
 			beep := make(chan string, 2)
 
-			tasks := taskrunner.New(ctx, logger)
+			tasks := taskrunner.New(ctx, slog.Default())
 
 			tasks.Start("readBarcodes", func(ctx context.Context) error {
 				return readBarcodes(ctx, barcodeReader, beep, logger)
