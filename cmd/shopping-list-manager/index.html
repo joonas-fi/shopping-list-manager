@@ -12,21 +12,21 @@
 	<input type="submit" value="Scan" />
 </form>
 
-<h1>Record missing barcode</h1>
-
-{{if .Barcode}}
-	<p>{{.Barcode}}</p>
-
-	<form action="">
-		<a href="https://google.com/search?q={{.Barcode}}" target="_blank">Websearch</a>
-
-		<input type="hidden" name="barcode" value="{{.Barcode}}" />
-		<input type="text" name="name" placeholder="Teddy bear" />
-		<input type="submit" value="Record" />
-	</form>
-{{else}}
-	<p>No unknown barcodes found!</p>
-{{end}}
-
+<table>
+	<thead>
+		<tr>
+			<th>Name</th>
+			<th>Last scanned</th>
+		</tr>
+	</thead>
+	<tbody>
+	{{range .}}
+		<tr>
+			<td><a href="item/{{.Barcode}}">{{.Name}}</a></td>
+			<td>{{.LastScanned}}</td>
+		</tr>
+		{{end}}
+	</tbody>
+</table>
 </body>
 </html>
