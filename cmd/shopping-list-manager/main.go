@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"log/slog"
-	"net/url"
 	"os"
 	"regexp"
 	"strconv"
@@ -166,14 +165,7 @@ func handleBeep(ctx context.Context, barcode string, logger *log.Logger, todo *t
 		if err != nil {
 			logex.Levels(logger).Error.Printf("unable to resolve '%s' to product name: %v", barcode, err)
 
-			// have the unrecognized product's link point to the web UI, so the user can fill in the right product name.
-			linkToWebui := ""
-			if baseURL := os.Getenv("WEBAPP_BASEURL"); baseURL != "" {
-				// "https://localhost" + "/shopping-list-manager/"
-				linkToWebui = baseURL + appHomeRoute
-			}
-
-			details = Pointer(newProductDetails(taskNameForUnnamedBarcode(barcode), linkToWebui))
+			details = Pointer(newProductDetails(taskNameForUnnamedBarcode(barcode), ""))
 
 			return *details, true, nil
 		} else { // found
@@ -194,7 +186,7 @@ func handleBeep(ctx context.Context, barcode string, logger *log.Logger, todo *t
 
 	logex.Levels(logger).Info.Printf("adding '%s'", details.Name)
 
-	if err := addProductNameToShoppingList(ctx, details.Name, createDescriptionMarkdown(barcode, details), todo); err != nil {
+	if err := addProductNameToShoppingList(ctx, details.Name, createDescriptionMarkdown(barcode), todo); err != nil {
 		return withErr(err)
 	}
 
@@ -334,12 +326,13 @@ func taskNameForUnnamedBarcode(barcode string) string {
 	return fmt.Sprintf("unrecognized barcode[%s]", barcode)
 }
 
-// use as description (which supports Markdown) a search link for the barcode so:
-// 1. we have access to the barcode in the task
-// 2. if the looked-up product name for the barcode happens to be wrong, we have quick access to search results
-func createDescriptionMarkdown(barcode string, product productDetails) string {
-	searchURL := fmt.Sprintf("https://google.com/search?q=%s", url.QueryEscape(barcode))
-	return fmt.Sprintf("Barcode %s\n[Link](%s)\n[Search](%s)", barcode, product.Link, searchURL)
+// use as description (which supports Markdown) a link to the item, so we have access to all the details
+// (like barcode, web search etc.) in the task
+func createDescriptionMarkdown(barcode string) string {
+	// searchURL := fmt.Sprintf("https://google.com/search?q=%s", url.QueryEscape(barcode))
+	baseURL := os.Getenv("WEBAPP_BASEURL")
+	linkToWebui := baseURL + appHomeRoute + "item/" + barcode
+	return fmt.Sprintf("[Details](%s)", linkToWebui)
 }
 
 var identifyMissRe = regexp.MustCompile(`^unrecognized barcode\[([0-9]+)\]$`)
