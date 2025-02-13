@@ -76,7 +76,11 @@ func main() {
 						if err != nil {
 							logex.Levels(logger).Error.Println(err.Error())
 
-							return "Error handling scanned barcode"
+							if errors.Is(err, errItemAlreadyOnShoppingList) {
+								return "Item not added because it was already on the shopping list"
+							} else {
+								return "Error handling scanned barcode"
+							}
 						} else {
 							if wasUnrecognized {
 								return "Item added but name is unrecognized"
@@ -278,6 +282,10 @@ func resolveProductDetailsByBarcode(ctx context.Context, barcode string, resolve
 	return &product, nil
 }
 
+var (
+	errItemAlreadyOnShoppingList = errors.New("requested productName already on the list")
+)
+
 func addProductNameToShoppingList(ctx context.Context, productName string, description string, todo *todoist.Client) error {
 	projectID, err := getTodoistProjectID()
 	if err != nil {
@@ -291,7 +299,7 @@ func addProductNameToShoppingList(ctx context.Context, productName string, descr
 
 	_, alreadyOnList := lo.Find(existingTasks, func(t todoist.Task) bool { return t.Content == productName })
 	if alreadyOnList {
-		return errors.New("requested productName already on the list")
+		return errItemAlreadyOnShoppingList
 	}
 
 	return todo.CreateTask(ctx, todoist.Task{
