@@ -9,6 +9,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"sort"
 
@@ -61,11 +62,13 @@ func webUI(ctx context.Context, todo *todoist.Client, logger *log.Logger) error 
 		type productDetailsWrapped struct {
 			productDetails
 			Barcode string
+			ViewURL string
 		}
 		db_ := lo.MapToSlice(*db, func(key string, value productDetails) productDetailsWrapped {
 			return productDetailsWrapped{
 				productDetails: value,
 				Barcode:        key,
+				ViewURL:        "item/" + url.PathEscape(key),
 			}
 		})
 
@@ -85,7 +88,11 @@ func webUI(ctx context.Context, todo *todoist.Client, logger *log.Logger) error 
 	}))
 
 	routes.HandleFunc(appHomeRoute+"item/{barcode}", httputils.WrapWithErrorHandling(func(w http.ResponseWriter, r *http.Request) error {
-		barcode := r.PathValue("barcode")
+		barcode, err := url.PathUnescape(r.PathValue("barcode"))
+		if err != nil {
+			return err
+		}
+
 		db, err := loadDB()
 		if err != nil {
 			return err

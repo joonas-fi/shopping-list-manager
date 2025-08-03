@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"log/slog"
+	"net/url"
 	"os"
 	"regexp"
 	"strconv"
@@ -339,7 +340,7 @@ func taskNameForUnnamedBarcode(barcode string) string {
 func createDescriptionMarkdown(barcode string) string {
 	// searchURL := fmt.Sprintf("https://google.com/search?q=%s", url.QueryEscape(barcode))
 	baseURL := os.Getenv("WEBAPP_BASEURL")
-	linkToWebui := baseURL + appHomeRoute + "item/" + barcode
+	linkToWebui := baseURL + appHomeRoute + "item/" + url.PathEscape(barcode)
 	return fmt.Sprintf("[Details](%s)", linkToWebui)
 }
 

@@ -22,7 +22,7 @@
 	<tbody>
 	{{range .}}
 		<tr>
-			<td><a href="item/{{.Barcode}}">{{.Name}}</a></td>
+			<td><a href="{{.ViewURL}}">{{.Name}}</a></td>
 			<td>{{.LastScanned}}</td>
 		</tr>
 		{{end}}
