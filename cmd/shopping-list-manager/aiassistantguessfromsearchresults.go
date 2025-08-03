@@ -18,7 +18,7 @@ func useAIAssistantToGuessProductNameFromSearchResults(ctx context.Context, sear
 		return "", fmt.Errorf("useAIAssistantToGuessProductNameFromSearchResults: %w", err)
 	}
 
-	openaiApiKey, err := osutil.GetenvRequired("OPENAI_API_KEY")
+	openaiAPIKey, err := osutil.GetenvRequired("OPENAI_API_KEY")
 	if err != nil {
 		return withErr(err)
 	}
@@ -27,7 +27,7 @@ func useAIAssistantToGuessProductNameFromSearchResults(ctx context.Context, sear
 
 	prompt := fmt.Sprintf("I have list of web search result page titles (one per line), try to guess what is the product name:\n```\n%s\n``` If search results are in multiple languages, prefer Finnish and then English. Respond with only the product name. If you don't have a guess, start you answer with the string `ERROR:`.", input)
 
-	res, err := openai.ChatCompletion(ctx, openai.SimpleChatCompletionReq(prompt), openaiApiKey)
+	res, err := openai.ChatCompletion(ctx, openai.SimpleChatCompletionReq(prompt), openaiAPIKey)
 	if err != nil {
 		return withErr(err)
 	}

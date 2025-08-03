@@ -18,13 +18,13 @@ type Project struct {
 }
 
 type Task struct {
-	Id          string    `json:"id"`
+	ID          string    `json:"id"`
 	Order       int       `json:"order,omitempty"` // order within this project. on creation need omitempty to not set 0 (= first on list)
 	Content     string    `json:"content"`
 	Description string    `json:"description"`
 	Completed   bool      `json:"is_completed"`
 	Created     time.Time `json:"created_at"`
-	Url         string    `json:"url"`
+	URL         string    `json:"url"`
 	Due         *DueSpec  `json:"due"` // only present for ones that have due date
 
 	ProjectID string `json:"project_id"`
@@ -131,7 +131,7 @@ func (t *Client) CreateTask(ctx context.Context, task Task) error {
 func (t *Client) UpdateTask(ctx context.Context, task Task) error {
 	if _, err := ezhttp.Post(
 		ctx,
-		fmt.Sprintf("https://api.todoist.com/rest/v2/tasks/%s", task.Id),
+		fmt.Sprintf("https://api.todoist.com/rest/v2/tasks/%s", task.ID),
 		ezhttp.AuthBearer(t.token),
 		ezhttp.SendJSON(task),
 	); err != nil {

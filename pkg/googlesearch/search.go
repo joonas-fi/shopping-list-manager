@@ -101,13 +101,13 @@ type SearchInformation struct {
 type Item struct {
 	Kind             string  `json:"kind"`
 	Title            string  `json:"title"`
-	HtmlTitle        string  `json:"htmlTitle"`
+	HTMLTitle        string  `json:"htmlTitle"`
 	Link             string  `json:"link"`
 	DisplayLink      string  `json:"displayLink"`
 	Snippet          string  `json:"snippet"`
-	HtmlSnippet      string  `json:"htmlSnippet"`
-	FormattedUrl     string  `json:"formattedUrl"`
-	HtmlFormattedUrl string  `json:"htmlFormattedUrl"`
+	HTMLSnippet      string  `json:"htmlSnippet"`
+	FormattedURL     string  `json:"formattedUrl"`
+	HTMLFormattedURL string  `json:"htmlFormattedUrl"`
 	Pagemap          Pagemap `json:"pagemap"`
 }
 
