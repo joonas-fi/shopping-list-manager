@@ -246,6 +246,10 @@ func resolveProductDetailsByBarcode(ctx context.Context, barcode string, resolve
 		return withErr(errors.New("barcode begins with 2 which implies store-internal barcode - bailing out"))
 	}
 
+	if strings.HasPrefix(barcode, "https:") || strings.HasPrefix(barcode, "http:") {
+		return withErr(errors.New("barcode encodes an (unrecognized) URL - bailing out"))
+	}
+
 	if l := len(barcode); l < 10 { // EAN should be 13. UPC should be 12.
 		// store-internal barcodes (like Lidl) are not very searchable as they are too short numbers
 		// which would lead to ambiguities. just tested with a Lidl toast and that resulted in wedding ring..
