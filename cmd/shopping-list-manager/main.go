@@ -274,7 +274,8 @@ func resolveProductDetailsByBarcode(ctx context.Context, barcode string, resolve
 
 	productNameGuess, err := useAIAssistantToGuessProductNameFromSearchResults(ctx, searchResultTitles, logger)
 	if err != nil {
-		return withErr(err)
+		productNameGuess = strings.Split(searchResultTitles[0], " - ")[0]
+		slog.Warn("AI guess of product name failed; falling back to first search result", "err", err, "fallback", productNameGuess)
 	}
 
 	product := newProductDetails(productNameGuess, barcodeSearchResults.Items[0].Link)
