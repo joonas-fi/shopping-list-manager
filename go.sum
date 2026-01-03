@@ -1,6 +1,8 @@
 github.com/cpuguy83/go-md2man/v2 v2.0.2/go.mod h1:tgQtvFlXSQOSOSIRvRPT7W67SCa46tRHOmNcaadrF8o=
 github.com/function61/gokit v0.0.0-20250122105845-0acfdd5a5212 h1:Uq7dECX1GJ3Gjv81GoXL2GM8TaPuFvC/7nFzHeDG/eQ=
 github.com/function61/gokit v0.0.0-20250122105845-0acfdd5a5212/go.mod h1:ewGYmDoaszHKjwN9S2AM30oQwe4mhvuRUA4uvzzkmRw=
+github.com/function61/gokit v0.0.0-20250704123853-66cf16f69a87 h1:pdYdopAUpOOJD0GFZmhgSUeqIcYG/A/osGV0246P+QA=
+github.com/function61/gokit v0.0.0-20250704123853-66cf16f69a87/go.mod h1:ewGYmDoaszHKjwN9S2AM30oQwe4mhvuRUA4uvzzkmRw=
 github.com/inconshreveable/mousetrap v1.0.1 h1:U3uMjPSQEBMNp1lFxmllqCPM6P5u/Xq7Pgzkat/bFNc=
 github.com/inconshreveable/mousetrap v1.0.1/go.mod h1:vpF70FUmC8bwa3OWnCshd2FqLfsEA9PFc4w1p2J65bw=
 github.com/joonas-fi/home-audio v0.0.0-20250201142352-c32d8a7f5a47 h1:rKg/w10ubpcqpZFgi7BVT5ecw6MpjBllUrmKbH9JuZc=

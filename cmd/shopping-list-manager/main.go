@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"log/slog"
 	"net/url"
 	"os"
@@ -16,10 +15,8 @@ import (
 	"time"
 
 	"github.com/function61/gokit/app/cli"
-	"github.com/function61/gokit/app/dynversion"
 	"github.com/function61/gokit/app/evdev"
 	. "github.com/function61/gokit/builtin"
-	"github.com/function61/gokit/log/logex"
 	"github.com/function61/gokit/os/osutil"
 	"github.com/function61/gokit/sync/taskrunner"
 	"github.com/joonas-fi/home-audio/pkg/homeaudioclient"
@@ -31,16 +28,16 @@ import (
 
 func main() {
 	app := &cobra.Command{
-		Use:     os.Args[0],
-		Short:   "Shopping list manager",
-		Version: dynversion.Version,
+		Short: "Shopping list manager",
 	}
 
 	app.AddCommand(&cobra.Command{
 		Use:   "run",
 		Short: "Listen for barcode scans from a barcode reader and add their product names to shopping list",
 		Args:  cobra.NoArgs,
-		Run: cli.RunnerNoArgs(func(ctx context.Context, logger *log.Logger) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			ctx := cmd.Context()
+
 			todo, err := getClient()
 			if err != nil {
 				return err
@@ -60,12 +57,12 @@ func main() {
 				defer func() { _ = close_() }()
 
 				tasks.Start("readBarcodes", func(ctx context.Context) error {
-					return readBarcodes(ctx, barcodeReader, beep, logger)
+					return readBarcodes(ctx, barcodeReader, beep, slog.Default())
 				})
 			}
 
 			tasks.Start("webui", func(ctx context.Context) error {
-				return webUI(ctx, todo, logger)
+				return webUI(ctx, todo, slog.Default())
 			})
 
 			homeAudio := homeaudioclient.New(homeaudioclient.HomeFn61)
@@ -75,11 +72,11 @@ func main() {
 				case err := <-tasks.Done():
 					return err
 				case barcode := <-beep:
-					details, err := handleBeep(ctx, barcode, logger, todo)
+					details, err := handleBeep(ctx, barcode, slog.Default(), todo)
 
 					audioFeedback := func() string {
 						if err != nil {
-							logex.Levels(logger).Error.Println(err.Error())
+							slog.Error("handleBeep", "err", err)
 
 							if errors.Is(err, errItemAlreadyOnShoppingList) {
 								return "Item not added because it was already on the shopping list"
@@ -102,34 +99,34 @@ func main() {
 					}
 				}
 			}
-		}),
+		},
 	})
 
 	app.AddCommand(&cobra.Command{
 		Use:   "pretend-scanned",
 		Short: "Act as though a barcode was scanned. Example input: 6408180733659",
 		Args:  cobra.ExactArgs(1),
-		Run: cli.Runner(func(ctx context.Context, args []string, logger *log.Logger) error {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			todo, err := getClient()
 			if err != nil {
 				return err
 			}
-			_, err = handleBeep(ctx, args[0], logger, todo)
+			_, err = handleBeep(cmd.Context(), args[0], slog.Default(), todo)
 			return err
-		}),
+		},
 	})
 
 	app.AddCommand(&cobra.Command{
 		Use:   "misses-ls",
 		Short: "List misses",
 		Args:  cobra.NoArgs,
-		Run: cli.RunnerNoArgs(func(ctx context.Context, logger *log.Logger) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			todo, err := getClient()
 			if err != nil {
 				return err
 			}
 
-			misses, err := listMisses(ctx, todo)
+			misses, err := listMisses(cmd.Context(), todo)
 			if err != nil {
 				return err
 			}
@@ -139,14 +136,14 @@ func main() {
 			}
 
 			return nil
-		}),
+		},
 	})
 
 	app.AddCommand(&cobra.Command{
 		Use:   "misses-record [barcode] [productName]",
 		Short: "Record a miss to the local DB so we remember it later",
 		Args:  cobra.ExactArgs(2),
-		Run: cli.Runner(func(ctx context.Context, args []string, logger *log.Logger) error {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			barcode := args[0]
 			productName := args[1]
 
@@ -155,14 +152,14 @@ func main() {
 				return err
 			}
 
-			return recordMissAndStoreToLocalDB(ctx, barcode, newProductDetails(productName, ""), todo)
-		}),
+			return recordMissAndStoreToLocalDB(cmd.Context(), barcode, newProductDetails(productName, ""), todo)
+		},
 	})
 
-	osutil.ExitIfError(app.Execute())
+	cli.Execute(app)
 }
 
-func handleBeep(ctx context.Context, barcode string, logger *log.Logger, todo *todoist.Client) (*productDetails, error) {
+func handleBeep(ctx context.Context, barcode string, logger *slog.Logger, todo *todoist.Client) (*productDetails, error) {
 	withErr := func(err error) (*productDetails, error) { return nil, fmt.Errorf("handleBeep: %w", err) }
 
 	// better reload this on every beep so that if DB has been updated, the changes are reflected
@@ -174,7 +171,7 @@ func handleBeep(ctx context.Context, barcode string, logger *log.Logger, todo *t
 	details, err := func() (productDetails, error) {
 		details, err := resolveProductDetailsByBarcode(ctx, barcode, db, todo, logger)
 		if err != nil {
-			logex.Levels(logger).Error.Printf("unable to resolve '%s' to product name: %v", barcode, err)
+			slog.Error("handleBeep: unable to resolve", "barcode", barcode, "err", err)
 
 			return newProductDetails(taskNameForUnnamedBarcode(barcode), ""), nil
 		} else { // found
@@ -193,7 +190,7 @@ func handleBeep(ctx context.Context, barcode string, logger *log.Logger, todo *t
 		return withErr(err)
 	}
 
-	logex.Levels(logger).Info.Printf("adding '%s'", details.Name)
+	slog.Info("adding", "ProductName", details.Name)
 
 	if err := addProductNameToShoppingList(ctx, details, createDescriptionMarkdown(barcode), todo); err != nil {
 		return withErr(err)
@@ -235,7 +232,7 @@ func recordMissAndStoreToLocalDB(ctx context.Context, barcode string, product pr
 	return saveDB(*db)
 }
 
-func resolveProductDetailsByBarcode(ctx context.Context, barcode string, resolveDB *LocalDB, todo *todoist.Client, logger *log.Logger) (*productDetails, error) {
+func resolveProductDetailsByBarcode(ctx context.Context, barcode string, resolveDB *LocalDB, todo *todoist.Client, logger *slog.Logger) (*productDetails, error) {
 	withErr := func(err error) (*productDetails, error) {
 		return nil, fmt.Errorf("resolveProductDetailsByBarcode: %w", err)
 	}
@@ -243,7 +240,7 @@ func resolveProductDetailsByBarcode(ctx context.Context, barcode string, resolve
 	if product, found := localDBresolveProductByBarcode(barcode, resolveDB); found {
 		return &product, nil
 	}
-	logex.Levels(logger).Info.Println("localDBresolveProductByBarcode: not found. continuing with web search")
+	slog.Info("localDBresolveProductByBarcode: not found. continuing with web search")
 
 	// https://en.wikipedia.org/wiki/List_of_GS1_country_codes
 	if strings.HasPrefix(barcode, "2") {
@@ -290,7 +287,7 @@ func resolveProductDetailsByBarcode(ctx context.Context, barcode string, resolve
 
 	if err := recordMissAndStoreToLocalDB(ctx, barcode, *product, todo); err != nil {
 		// this is not critical error in context of this function's task
-		logex.Levels(logger).Error.Println(err.Error())
+		logger.Error("recordMissAndStoreToLocalDB", "err", err)
 	}
 
 	return product, nil

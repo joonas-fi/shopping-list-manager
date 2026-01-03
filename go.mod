@@ -3,7 +3,7 @@ module github.com/joonas-fi/shopping-list-manager
 go 1.23.1
 
 require (
-	github.com/function61/gokit v0.0.0-20250122105845-0acfdd5a5212
+	github.com/function61/gokit v0.0.0-20250704123853-66cf16f69a87
 	github.com/joonas-fi/home-audio v0.0.0-20250201142352-c32d8a7f5a47
 	github.com/samber/lo v1.47.0
 	github.com/spf13/cobra v1.6.1

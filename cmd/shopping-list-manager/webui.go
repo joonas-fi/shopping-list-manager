@@ -3,17 +3,17 @@ package main
 // The web UI is for entering unrecognized barcodes to the database.
 
 import (
+	"cmp"
 	"context"
 	"embed"
 	"fmt"
 	"html/template"
-	"log"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
 	"sort"
 
-	. "github.com/function61/gokit/builtin"
 	"github.com/function61/gokit/net/http/httputils"
 	"github.com/joonas-fi/shopping-list-manager/pkg/todoist"
 	"github.com/samber/lo"
@@ -26,7 +26,7 @@ const (
 	appHomeRoute = "/shopping-list-manager/"
 )
 
-func webUI(ctx context.Context, todo *todoist.Client, logger *log.Logger) error {
+func webUI(ctx context.Context, todo *todoist.Client, logger *slog.Logger) error {
 	templates, err := template.ParseFS(templateFiles, "*.html")
 	if err != nil {
 		return err
@@ -157,7 +157,7 @@ func webUI(ctx context.Context, todo *todoist.Client, logger *log.Logger) error 
 	}))
 
 	srv := &http.Server{
-		Addr:              ":" + FirstNonEmpty(os.Getenv("PORT"), "80"),
+		Addr:              ":" + cmp.Or(os.Getenv("PORT"), "80"),
 		Handler:           routes,
 		ReadHeaderTimeout: httputils.DefaultReadHeaderTimeout,
 	}

@@ -7,7 +7,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"log/slog"
 	"os"
 	"regexp"
@@ -18,7 +17,7 @@ import (
 	"github.com/joonas-fi/shopping-list-manager/pkg/openai"
 )
 
-func useAIAssistantToGuessProductDetailsFromSearchResults(ctx context.Context, searchResults []string, link string, logger *log.Logger) (*productDetails, error) {
+func useAIAssistantToGuessProductDetailsFromSearchResults(ctx context.Context, searchResults []string, link string, logger *slog.Logger) (*productDetails, error) {
 	withErr := func(err error) (*productDetails, error) {
 		return nil, fmt.Errorf("useAIAssistantToGuessProductDetailsFromSearchResults: %w", err)
 	}
@@ -41,7 +40,7 @@ func useAIAssistantToGuessProductDetailsFromSearchResults(ctx context.Context, s
 	case 1:
 		// good
 	default:
-		logger.Printf("WARN: %d choices; this indicates AI agent is unsure of its response", len(res.Choices))
+		logger.Warn("AI agent returned multiple choices; indicates uncertainty of its response", "numChoices", len(res.Choices))
 	}
 
 	bestChoice := res.Choices[0].Message // just assumption
@@ -76,7 +75,7 @@ func useAIAssistantToGuessProductDetailsFromSearchResults(ctx context.Context, s
 		return nil, fmt.Errorf("AI agent failed to resolve product name. notes: %s", resolve(answerMatchers.Notes))
 	}
 
-	slog.Debug("useAIAssistantToGuessProductDetailsFromSearchResults", "Name", details.Name, "ProductType", details.ProductType, "ProductCategory", details.ProductCategory)
+	logger.Debug("useAIAssistantToGuessProductDetailsFromSearchResults", "Name", details.Name, "ProductType", details.ProductType, "ProductCategory", details.ProductCategory)
 
 	return &details, nil
 }

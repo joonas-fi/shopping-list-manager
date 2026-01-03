@@ -5,14 +5,14 @@ package main
 import (
 	"context"
 	"errors"
-	"log"
+	"log/slog"
 	"strings"
 
 	"github.com/function61/gokit/app/evdev"
 	"github.com/function61/gokit/sync/syncutil"
 )
 
-func readBarcodes(ctx context.Context, barcodeReader *evdev.Device, beep chan<- string, logger *log.Logger) error {
+func readBarcodes(ctx context.Context, barcodeReader *evdev.Device, beep chan<- string, logger *slog.Logger) error {
 	scanInputStopped := syncutil.Async(func() error { return barcodeReader.ScanInputGrabbed(ctx) })
 
 	// only "committed" once we get enter keyrelease
@@ -46,7 +46,7 @@ func readBarcodes(ctx context.Context, barcodeReader *evdev.Device, beep chan<- 
 				case beep <- keyCodesToText(keysEntered):
 				// happy
 				default:
-					logger.Printf("beep channel overflowed. dropped [%s]", keysEntered)
+					logger.Warn("beep channel overflowed", "droppedKeyCodeCount", keysEntered)
 				}
 
 				keysEntered = []evdev.KeyOrButton{}
