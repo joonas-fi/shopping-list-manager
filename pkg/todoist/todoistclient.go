@@ -19,7 +19,7 @@ type Project struct {
 
 type Task struct {
 	ID          string    `json:"id"`
-	Order       int       `json:"order,omitempty"` // order within this project. on creation need omitempty to not set 0 (= first on list)
+	Order       int       `json:"order,omitempty"` // order within this project. on creation need omitempty to not set 0 (= which would be first on list)
 	Content     string    `json:"content"`
 	Description string    `json:"description"`
 	Completed   bool      `json:"is_completed"`
@@ -61,9 +61,7 @@ type Client struct {
 func (t *Client) Project(ctx context.Context, id int64) (*Project, error) {
 	project := &Project{}
 
-	if _, err := ezhttp.Get(
-		ctx,
-		fmt.Sprintf("https://api.todoist.com/rest/v2/projects/%d", id),
+	if _, err := ezhttp.Get(ctx, fmt.Sprintf("https://api.todoist.com/rest/v2/projects/%d", id),
 		ezhttp.AuthBearer(t.token),
 		ezhttp.RespondsJSONAllowUnknownFields(project),
 	); err != nil {
@@ -76,49 +74,23 @@ func (t *Client) Project(ctx context.Context, id int64) (*Project, error) {
 func (t *Client) TasksByProject(ctx context.Context, id int64, now time.Time) ([]Task, error) {
 	tasks := []Task{}
 
-	if _, err := ezhttp.Get(
-		ctx,
-		fmt.Sprintf("https://api.todoist.com/rest/v2/tasks?project_id=%d", id),
+	if _, err := ezhttp.Get(ctx, fmt.Sprintf("https://api.todoist.com/rest/v2/tasks?project_id=%d", id),
 		ezhttp.AuthBearer(t.token),
 		ezhttp.RespondsJSONAllowUnknownFields(&tasks),
 	); err != nil {
 		return nil, fmt.Errorf("TasksByProject: %w", err)
 	}
 
-	// REST API has no sensible ordering, so we have to sort them.
-	// NOTE: this doesn't seem to be the exact same order as Todoist UI uses. i.e. not all overdue
-	//       tasks are at the top for some reason..
+	// REST API results have no ordering, so we have to sort them.
 	sort.Slice(tasks, func(i, j int) bool {
-		return multiCompare(
-			func() int { // first sort by *overdue* due date (if set)
-				leftOverdue := tasks[i].OverdueAmount(now) > 0
-				rightOverdue := tasks[j].OverdueAmount(now) > 0
-
-				switch {
-				case !leftOverdue && !rightOverdue:
-					return 0 // equal
-				case leftOverdue && !rightOverdue:
-					return -1
-				case !leftOverdue && rightOverdue:
-					return 1
-				default: // both have due date
-					// i <-> j in different order purposefully because larger overdue needs to sort before
-					return int64Compare(
-						int64(tasks[j].OverdueAmount(now)),
-						int64(tasks[i].OverdueAmount(now)))
-				}
-			}(),
-			intCompare(tasks[i].Order, tasks[j].Order),
-		)
+		return tasks[i].Order < tasks[j].Order
 	})
 
 	return tasks, nil
 }
 
 func (t *Client) CreateTask(ctx context.Context, task Task) error {
-	if _, err := ezhttp.Post(
-		ctx,
-		"https://api.todoist.com/rest/v2/tasks",
+	if _, err := ezhttp.Post(ctx, "https://api.todoist.com/rest/v2/tasks",
 		ezhttp.AuthBearer(t.token),
 		ezhttp.SendJSON(task),
 	); err != nil {
@@ -129,9 +101,7 @@ func (t *Client) CreateTask(ctx context.Context, task Task) error {
 }
 
 func (t *Client) UpdateTask(ctx context.Context, task Task) error {
-	if _, err := ezhttp.Post(
-		ctx,
-		fmt.Sprintf("https://api.todoist.com/rest/v2/tasks/%s", task.ID),
+	if _, err := ezhttp.Post(ctx, fmt.Sprintf("https://api.todoist.com/rest/v2/tasks/%s", task.ID),
 		ezhttp.AuthBearer(t.token),
 		ezhttp.SendJSON(task),
 	); err != nil {
