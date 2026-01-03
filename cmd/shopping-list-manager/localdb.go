@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/function61/gokit/encoding/jsonfile"
+	"github.com/function61/gokit/time/timeutil"
 )
 
 const (
@@ -24,6 +25,14 @@ type productDetails struct {
 
 func (p productDetails) IsUnrecognizedBarcode() bool {
 	return identifyMissRe.MatchString(p.Name)
+}
+
+func (p productDetails) LastScannedHumanized() string {
+	if p.LastScanned == nil {
+		return "never"
+	}
+
+	return timeutil.HumanizeDuration(time.Since(*p.LastScanned))
 }
 
 type LocalDB map[string]productDetails

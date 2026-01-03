@@ -16,6 +16,7 @@
 	<thead>
 		<tr>
 			<th>Name</th>
+			<th>Category</th>
 			<th>Last scanned</th>
 		</tr>
 	</thead>
@@ -23,7 +24,8 @@
 	{{range .}}
 		<tr>
 			<td><a href="{{.ViewURL}}">{{.Name}}</a></td>
-			<td>{{.LastScanned}}</td>
+			<td><a href="?category={{.ProductCategory | urlquery}}">{{.ProductCategory}}</a></td>
+			<td>{{.LastScannedHumanized}}</td>
 		</tr>
 		{{end}}
 	</tbody>

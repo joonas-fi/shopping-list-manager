@@ -83,6 +83,10 @@ func webUI(ctx context.Context, todo *todoist.Client, logger *log.Logger) error 
 			return !db_[i].LastScanned.Before(*db_[j].LastScanned)
 		})
 
+		if categoryFilter := r.URL.Query().Get("category"); categoryFilter != "" {
+			db_ = lo.Filter(db_, func(product productDetailsWrapped, _ int) bool { return product.ProductCategory == categoryFilter })
+		}
+
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		return templates.ExecuteTemplate(w, "index.html", db_)
 	}))
