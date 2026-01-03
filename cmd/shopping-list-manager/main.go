@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -194,7 +195,7 @@ func handleBeep(ctx context.Context, barcode string, logger *log.Logger, todo *t
 
 	logex.Levels(logger).Info.Printf("adding '%s'", details.Name)
 
-	if err := addProductNameToShoppingList(ctx, details.Name, createDescriptionMarkdown(barcode), todo); err != nil {
+	if err := addProductNameToShoppingList(ctx, details, createDescriptionMarkdown(barcode), todo); err != nil {
 		return withErr(err)
 	}
 
@@ -299,7 +300,7 @@ var (
 	errItemAlreadyOnShoppingList = errors.New("requested productName already on the list")
 )
 
-func addProductNameToShoppingList(ctx context.Context, productName string, description string, todo *todoist.Client) error {
+func addProductNameToShoppingList(ctx context.Context, product productDetails, description string, todo *todoist.Client) error {
 	projectID, err := getTodoistProjectID()
 	if err != nil {
 		return err
@@ -310,15 +311,20 @@ func addProductNameToShoppingList(ctx context.Context, productName string, descr
 		return err
 	}
 
-	_, alreadyOnList := lo.Find(existingTasks, func(t todoist.Task) bool { return t.Content == productName })
-	if alreadyOnList {
+	if _, alreadyOnList := lo.Find(existingTasks, func(t todoist.Task) bool { return t.Content == product.Name }); alreadyOnList {
 		return errItemAlreadyOnShoppingList
 	}
 
+	order := 0
+	if idx := slices.Index(productCategories, product.ProductCategory); idx != -1 {
+		order = 10000 + (idx * 100)
+	}
+
 	return todo.CreateTask(ctx, todoist.Task{
-		Content:     productName,
+		Content:     product.Name,
 		Description: description,
 		ProjectID:   strconv.Itoa(int(projectID)),
+		Order:       order,
 	})
 }
 
