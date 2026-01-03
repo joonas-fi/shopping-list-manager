@@ -4,26 +4,11 @@ on: [push]
 
 permissions:
   contents: read
+  # push container images to GHCR
   packages: write
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
+  reusable-build:
+    # this basically just runs `$ bob build` (for details see https://github.com/function61/turbobob)
+    uses: function61/turbobob-action/.github/workflows/build.yml@main
 
-    - name: Login to GitHub Container Registry
-      uses: docker/login-action@v3
-      with:
-        registry: ghcr.io
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Build
-      run: |
-        set -eu
-        curl --fail --location --no-progress-meter --output /usr/local/bin/bob https://function61.com/go/turbobob-latest-stable-linux-amd64 && chmod +x /usr/local/bin/bob
-        bob build in-ci-autodetect-settings
-
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
