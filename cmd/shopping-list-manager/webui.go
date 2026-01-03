@@ -87,7 +87,7 @@ func webUI(ctx context.Context, todo *todoist.Client, logger *log.Logger) error 
 		return templates.ExecuteTemplate(w, "index.html", db_)
 	}))
 
-	routes.HandleFunc(appHomeRoute+"item/{barcode}", httputils.WrapWithErrorHandling(func(w http.ResponseWriter, r *http.Request) error {
+	routes.HandleFunc("GET "+appHomeRoute+"item/{barcode}", httputils.WrapWithErrorHandling(func(w http.ResponseWriter, r *http.Request) error {
 		barcode, err := url.PathUnescape(r.PathValue("barcode"))
 		if err != nil {
 			return err
@@ -98,13 +98,37 @@ func webUI(ctx context.Context, todo *todoist.Client, logger *log.Logger) error 
 			return err
 		}
 
-		if productName := r.URL.Query().Get("name"); productName != "" {
-			if err := recordMissAndStoreToLocalDB(r.Context(), barcode, newProductDetails(productName, ""), todo); err != nil {
-				return err
-			}
+		item, found := (*db)[barcode]
+		if !found {
+			item = newProductDetails(taskNameForUnnamedBarcode(barcode), "")
+		}
+		type itemWrapped struct {
+			productDetails
+			Barcode           string // since this is found from DB key only (not present in the actual item)
+			Found             bool
+			ProductCategories []string
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		return templates.ExecuteTemplate(w, "item.html", itemWrapped{
+			productDetails:    item,
+			Found:             found,
+			Barcode:           barcode,
+			ProductCategories: productCategories,
+		})
+	}))
 
-			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-			_, err := fmt.Fprintf(w, "added to recognized barcodes: %s", productName)
+	routes.HandleFunc("POST "+appHomeRoute+"item/{barcode}", httputils.WrapWithErrorHandling(func(w http.ResponseWriter, r *http.Request) error {
+		barcode, err := url.PathUnescape(r.PathValue("barcode"))
+		if err != nil {
+			return err
+		}
+
+		if err := r.ParseForm(); err != nil {
+			return err
+		}
+
+		db, err := loadDB()
+		if err != nil {
 			return err
 		}
 
@@ -112,17 +136,20 @@ func webUI(ctx context.Context, todo *todoist.Client, logger *log.Logger) error 
 		if !found {
 			item = newProductDetails(taskNameForUnnamedBarcode(barcode), "")
 		}
-		type itemWrapped struct {
-			productDetails
-			Barcode string // since this is found from DB key only (not present in the actual item)
-			Found   bool
+
+		item.Name = r.FormValue("name")
+		item.Link = r.FormValue("link")
+		item.ProductType = r.FormValue("product_type")
+		item.ProductCategory = r.FormValue("product_category")
+		item.Notes = r.FormValue("notes")
+
+		if err := recordMissAndStoreToLocalDB(r.Context(), barcode, item, todo); err != nil {
+			return err
 		}
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		return templates.ExecuteTemplate(w, "item.html", itemWrapped{
-			productDetails: item,
-			Found:          found,
-			Barcode:        barcode,
-		})
+
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		_, err = fmt.Fprintf(w, "updated: %s", item.Name)
+		return err
 	}))
 
 	srv := &http.Server{

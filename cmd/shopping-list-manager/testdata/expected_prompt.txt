@@ -1,0 +1,45 @@
+I have list of web search result page titles (one per line), try to guess what is the product name (usually it's a grocery store item, but not always):
+
+```
+Tacokastike
+Tacokastike 100 g
+```
+
+If search results are in multiple languages, prefer Finnish and then English.
+
+This will be variable *ProductName*. It may or may not be in Finnish.
+
+I want also to resolve product type (*ProductType*) and product category (*ProductCategory*) for the product name. Product type example is just "Milk" and product category is one of these rigid options:
+
+- Other
+- Produce (Fruits & Vegetables)
+- Meat & Seafood
+- Deli
+- Dairy & Eggs
+- Bakery / Bread
+- Pantry / Dry Goods
+- Canned & Jarred
+- Baking Supplies
+- Breakfast (cereal, oatmeal, spreads)
+- Snacks
+- Beverages
+- Frozen Foods
+- Condiments & Sauces
+- Spices & Seasonings
+- Household / Cleaning
+- Paper Goods (toilet paper, napkins, towels)
+- Personal Care / Health
+- Baby
+- Pet
+- Alcohol (where applicable)
+
+Please respond succinctly in this format:
+
+```
+Product name: <ProductName>
+Product type: <ProductType>
+Product category: <ProductCategory>
+Notes: <notes if you have any additional notes, for example if you're unsure of some detail>
+```
+
+For the category if you're unsure choose "Other" and include in notes why you're unsure.

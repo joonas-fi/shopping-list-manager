@@ -13,10 +13,17 @@ const (
 )
 
 type productDetails struct {
-	Name         string     `json:"name"`
-	Link         string     `json:"link"`
-	FirstScanned *time.Time `json:"first_scanned"`
-	LastScanned  *time.Time `json:"last_scanned"`
+	Name            string     `json:"name"`
+	ProductType     string     `json:"product_type"` // milk | butter | juice | ...
+	ProductCategory string     `json:"product_category"`
+	Link            string     `json:"link"`
+	Notes           string     `json:"notes,omitempty"`
+	FirstScanned    *time.Time `json:"first_scanned"`
+	LastScanned     *time.Time `json:"last_scanned"`
+}
+
+func (p productDetails) IsUnrecognizedBarcode() bool {
+	return identifyMissRe.MatchString(p.Name)
 }
 
 type LocalDB map[string]productDetails

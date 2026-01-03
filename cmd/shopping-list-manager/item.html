@@ -5,27 +5,61 @@
 </head>
 <body>
 
-<h1>{{.Name}}</h1>
-
-<p>Barcode: {{.Barcode}} (<a href="https://google.com/search?q={{.Barcode}}" target="_blank">Websearch</a>)</p>
-
-{{if .Link}}
-<a href="{{.Link}}" target="_blank">Link</a>
-{{end}}
-
 {{if not .Found}}
-	<h2>Missing barcode</h2>
-
-	<form action="">
-		<input type="text" name="name" placeholder="Teddy bear" />
-		<input type="submit" value="Record" />
-	</form>
+	<h1>Missing barcode</h1>
 {{else}}
-	<form action="">
-		<input type="text" name="name" value="{{.Name}}" />
-		<input type="submit" value="Rename" />
-	</form>
+	<h1>{{.Name}}</h1>
 {{end}}
+
+<form action="" method="post">
+<table>
+	<tr>
+		<th>Name</th>
+		<td><input type="text" name="name" value="{{.Name}}" placeholder="Teddy bear" /></td>
+		<td></td>
+	</tr>
+	<tr>
+		<th>Barcode</th>
+		<td>{{.Barcode}}</td>
+		<td><a href="https://google.com/search?q={{.Barcode}}" target="_blank">Websearch</a></td>
+	</tr>
+	<tr>
+		<th>Link</th>
+		<td><input type="text" name="link" value="{{.Link}}" placeholder="https://example.com/product" /></td>
+		<td>
+{{if .Link}}
+			<a href="{{.Link}}" target="_blank">Open</a>
+{{end}}
+		</td>
+	</tr>
+	<tr>
+		<th>Product type</th>
+		<td><input type="text" name="product_type" value="{{.ProductType}}" placeholder="Rye Bread Slices" /></td>
+		<td></td>
+	</tr>
+	<tr>
+		<th>Product category</th>
+		<td>
+			<select name="product_category">
+			  {{range $.ProductCategories}}
+			    <option value="{{.}}"
+			      {{if eq . $.ProductCategory}}selected{{end}}>
+			      {{.}}
+			    </option>
+			  {{end}}
+			</select>
+		</td>
+		<td></td>
+	</tr>
+	<tr>
+		<th>Notes</th>
+		<td><input type="text" name="notes" value="{{.Notes}}" placeholder="" /></td>
+		<td></td>
+	</tr>
+</table>
+
+<input type="submit" value="Save / update" />
+</form>
 
 </body>
 </html>

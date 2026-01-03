@@ -71,7 +71,7 @@ func main() {
 				case err := <-tasks.Done():
 					return err
 				case barcode := <-beep:
-					wasUnrecognized, err := handleBeep(ctx, barcode, logger, todo)
+					details, err := handleBeep(ctx, barcode, logger, todo)
 
 					audioFeedback := func() string {
 						if err != nil {
@@ -83,8 +83,10 @@ func main() {
 								return "Error handling scanned barcode"
 							}
 						} else {
-							if wasUnrecognized {
+							if details.IsUnrecognizedBarcode() {
 								return "Item added but name is unrecognized"
+							} else if type_ := details.ProductType; type_ != "" {
+								return "Added " + type_
 							} else {
 								return "Item added"
 							}
@@ -156,8 +158,8 @@ func main() {
 	osutil.ExitIfError(app.Execute())
 }
 
-func handleBeep(ctx context.Context, barcode string, logger *log.Logger, todo *todoist.Client) (bool, error) {
-	withErr := func(err error) (bool, error) { return true, fmt.Errorf("handleBeep: %w", err) }
+func handleBeep(ctx context.Context, barcode string, logger *log.Logger, todo *todoist.Client) (*productDetails, error) {
+	withErr := func(err error) (*productDetails, error) { return nil, fmt.Errorf("handleBeep: %w", err) }
 
 	// better reload this on every beep so that if DB has been updated, the changes are reflected
 	db, err := loadDB()
@@ -165,24 +167,22 @@ func handleBeep(ctx context.Context, barcode string, logger *log.Logger, todo *t
 		return withErr(err)
 	}
 
-	details, wasUnrecognized, err := func() (productDetails, bool, error) {
+	details, err := func() (productDetails, error) {
 		details, err := resolveProductDetailsByBarcode(ctx, barcode, db, todo, logger)
 		if err != nil {
 			logex.Levels(logger).Error.Printf("unable to resolve '%s' to product name: %v", barcode, err)
 
-			details = Pointer(newProductDetails(taskNameForUnnamedBarcode(barcode), ""))
-
-			return *details, true, nil
+			return newProductDetails(taskNameForUnnamedBarcode(barcode), ""), nil
 		} else { // found
 			details.LastScanned = Pointer(time.Now().UTC())
 
 			(*db)[barcode] = *details
 
 			if err := saveDB(*db); err != nil {
-				return *details, false, err
+				return *details, err
 			}
 
-			return *details, false, nil
+			return *details, nil
 		}
 	}()
 	if err != nil {
@@ -195,7 +195,7 @@ func handleBeep(ctx context.Context, barcode string, logger *log.Logger, todo *t
 		return withErr(err)
 	}
 
-	return wasUnrecognized, nil
+	return &details, nil
 }
 
 func recordMissAndStoreToLocalDB(ctx context.Context, barcode string, product productDetails, todo *todoist.Client) error {
@@ -272,20 +272,24 @@ func resolveProductDetailsByBarcode(ctx context.Context, barcode string, resolve
 
 	searchResultTitles := lo.Map(barcodeSearchResults.Items, func(result googlesearch.Item, _ int) string { return result.Title })
 
-	productNameGuess, err := useAIAssistantToGuessProductNameFromSearchResults(ctx, searchResultTitles, logger)
-	if err != nil {
-		productNameGuess = strings.Split(searchResultTitles[0], " - ")[0]
-		slog.Warn("AI guess of product name failed; falling back to first search result", "err", err, "fallback", productNameGuess)
-	}
+	product := func() *productDetails {
+		link := barcodeSearchResults.Items[0].Link
+		result, err := useAIAssistantToGuessProductDetailsFromSearchResults(ctx, searchResultTitles, link, logger)
+		if err != nil {
+			productNameGuess := strings.Split(searchResultTitles[0], " - ")[0]
+			slog.Warn("AI guess of product details failed; falling back to first search result", "err", err, "fallback", productNameGuess)
+			return Pointer(newProductDetails(productNameGuess, link))
+		}
 
-	product := newProductDetails(productNameGuess, barcodeSearchResults.Items[0].Link)
+		return result
+	}()
 
-	if err := recordMissAndStoreToLocalDB(ctx, barcode, product, todo); err != nil {
+	if err := recordMissAndStoreToLocalDB(ctx, barcode, *product, todo); err != nil {
 		// this is not critical error in context of this function's task
 		logex.Levels(logger).Error.Println(err.Error())
 	}
 
-	return &product, nil
+	return product, nil
 }
 
 var (
@@ -372,5 +376,9 @@ func getTodoistProjectID() (int64, error) {
 }
 
 func newProductDetails(productName string, link string) productDetails {
-	return productDetails{Name: productName, Link: link, FirstScanned: Pointer(time.Now().UTC())}
+	return productDetails{
+		Name:         productName,
+		Link:         link,
+		FirstScanned: Pointer(time.Now().UTC()),
+	}
 }
