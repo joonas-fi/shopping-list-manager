@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -44,21 +45,23 @@ func main() {
 				return err
 			}
 
-			barcodeReaderDevicePath := FirstNonEmpty(os.Getenv("BARCODE_READER"), "/dev/barcode-reader")
-
-			barcodeReader, close_, err := evdev.Open(barcodeReaderDevicePath)
-			if err != nil {
-				return err
-			}
-			defer func() { _ = close_() }()
-
 			beep := make(chan string, 2)
 
 			tasks := taskrunner.New(ctx, slog.Default())
 
-			tasks.Start("readBarcodes", func(ctx context.Context) error {
-				return readBarcodes(ctx, barcodeReader, beep, logger)
-			})
+			barcodeReaderDevicePath := cmp.Or(os.Getenv("BARCODE_READER"), "/dev/barcode-reader")
+
+			if barcodeReaderDevicePath != "" && barcodeReaderDevicePath != "/dev/null" {
+				barcodeReader, close_, err := evdev.Open(barcodeReaderDevicePath)
+				if err != nil {
+					return err
+				}
+				defer func() { _ = close_() }()
+
+				tasks.Start("readBarcodes", func(ctx context.Context) error {
+					return readBarcodes(ctx, barcodeReader, beep, logger)
+				})
+			}
 
 			tasks.Start("webui", func(ctx context.Context) error {
 				return webUI(ctx, todo, logger)
