@@ -110,7 +110,7 @@ func webUI(ctx context.Context, todo *todoist.Client, logger *slog.Logger) error
 			productDetails
 			Barcode           string // since this is found from DB key only (not present in the actual item)
 			Found             bool
-			ProductCategories []string
+			ProductCategories []productCategoryItem
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		return templates.ExecuteTemplate(w, "item.html", itemWrapped{

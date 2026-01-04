@@ -42,9 +42,9 @@
 		<td>
 			<select name="product_category">
 			  {{range $.ProductCategories}}
-			    <option value="{{.}}"
-			      {{if eq . $.ProductCategory}}selected{{end}}>
-			      {{.}}
+			    <option value="{{.Label}}"
+			      {{if eq .Label $.ProductCategory}}selected{{end}}>
+			      {{.Emoji}} {{.Label}}
 			    </option>
 			  {{end}}
 			</select>

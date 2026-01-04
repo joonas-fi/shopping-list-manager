@@ -31,7 +31,7 @@ I want also to resolve product type (*ProductType*) and product category (*Produ
 - Personal Care / Health
 - Baby
 - Pet
-- Alcohol (where applicable)
+- Alcohol
 
 Please respond succinctly in this format:
 

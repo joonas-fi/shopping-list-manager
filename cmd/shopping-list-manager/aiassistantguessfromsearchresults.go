@@ -116,7 +116,7 @@ For the category if you're unsure choose "Other" and include in notes why you're
 
 	return fmt.Sprintf(strings.ReplaceAll(promptTemplate, "CODEFENCE", "```"),
 			strings.Join(searchResults, "\n"),
-			strings.Join(productCategories, "\n- "),
+			strings.Join(productCategoriesLabelsOnly, "\n- "),
 		), promptAnswerMatchers{
 			ProductName:     regexp.MustCompile(`Product name: ([^\n]+)`),
 			ProductType:     regexp.MustCompile(`Product type: ([^\n]+)`),

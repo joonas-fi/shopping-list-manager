@@ -9,7 +9,6 @@ import (
 	"net/url"
 	"os"
 	"regexp"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -312,13 +311,18 @@ func addProductNameToShoppingList(ctx context.Context, product productDetails, d
 		return errItemAlreadyOnShoppingList
 	}
 
-	order := 0
-	if idx := slices.Index(productCategories, product.ProductCategory); idx != -1 {
-		order = 10000 + (idx * 100)
-	}
+	category, categoryIdx := resolveProductCategory(product.ProductCategory)
+
+	taskName, order := func() (string, int) {
+		if category != nil {
+			return fmt.Sprintf("%s %s", category.Emoji, product.Name), 10000 + (categoryIdx * 100)
+		} else {
+			return product.Name, 0
+		}
+	}()
 
 	return todo.CreateTask(ctx, todoist.Task{
-		Content:     product.Name,
+		Content:     taskName,
 		Description: description,
 		ProjectID:   strconv.Itoa(int(projectID)),
 		Order:       order,
