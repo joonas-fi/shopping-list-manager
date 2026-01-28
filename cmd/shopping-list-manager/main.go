@@ -302,15 +302,6 @@ func addProductNameToShoppingList(ctx context.Context, product productDetails, d
 		return err
 	}
 
-	existingTasks, err := todo.TasksByProject(ctx, projectID, time.Now())
-	if err != nil {
-		return err
-	}
-
-	if _, alreadyOnList := lo.Find(existingTasks, func(t todoist.Task) bool { return t.Content == product.Name }); alreadyOnList {
-		return errItemAlreadyOnShoppingList
-	}
-
 	category, categoryIdx := resolveProductCategory(product.ProductCategory)
 
 	taskName, order := func() (string, int) {
@@ -320,6 +311,15 @@ func addProductNameToShoppingList(ctx context.Context, product productDetails, d
 			return product.Name, 0
 		}
 	}()
+
+	existingTasks, err := todo.TasksByProject(ctx, projectID, time.Now())
+	if err != nil {
+		return err
+	}
+
+	if _, alreadyOnList := lo.Find(existingTasks, func(t todoist.Task) bool { return t.Content == taskName }); alreadyOnList {
+		return errItemAlreadyOnShoppingList
+	}
 
 	return todo.CreateTask(ctx, todoist.Task{
 		Content:     taskName,
