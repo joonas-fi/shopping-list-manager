@@ -189,7 +189,10 @@ func handleBeep(ctx context.Context, barcode string, logger *slog.Logger, todo *
 		return withErr(err)
 	}
 
-	slog.Info("adding", "ProductName", details.Name)
+	slog.Info("adding",
+		"barcode", barcode,
+		"ProductName", details.Name,
+	)
 
 	if err := addProductNameToShoppingList(ctx, details, createDescriptionMarkdown(barcode), todo); err != nil {
 		return withErr(err)
