@@ -9,7 +9,6 @@ import (
 	"net/url"
 	"os"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
@@ -327,7 +326,7 @@ func addProductNameToShoppingList(ctx context.Context, product productDetails, d
 	return todo.CreateTask(ctx, todoist.Task{
 		Content:     taskName,
 		Description: description,
-		ProjectID:   strconv.Itoa(int(projectID)),
+		ProjectID:   projectID,
 		Order:       order,
 	})
 }
@@ -374,18 +373,8 @@ func getClient() (*todoist.Client, error) {
 	return todoist.NewClient(tok), err
 }
 
-func getTodoistProjectID() (int64, error) {
-	projectIDStr, err := osutil.GetenvRequired("TODOIST_PROJECT_ID")
-	if err != nil {
-		return 0, err
-	}
-
-	projectID, err := strconv.Atoi(projectIDStr)
-	if err != nil {
-		return 0, err
-	}
-
-	return int64(projectID), nil
+func getTodoistProjectID() (string, error) {
+	return osutil.GetenvRequired("TODOIST_PROJECT_ID")
 }
 
 func newProductDetails(productName string, link string) productDetails {
