@@ -47,6 +47,8 @@ func main() {
 
 			barcodeReaderDevicePath := cmp.Or(os.Getenv("BARCODE_READER"), "/dev/barcode-reader")
 
+			homeAudio := homeaudioclient.New(homeaudioclient.HomeFn61)
+
 			if barcodeReaderDevicePath != "" && barcodeReaderDevicePath != "/dev/null" {
 				barcodeReader, close_, err := evdev.Open(barcodeReaderDevicePath)
 				if err != nil {
@@ -55,15 +57,19 @@ func main() {
 				defer func() { _ = close_() }()
 
 				tasks.Start("readBarcodes", func(ctx context.Context) error {
-					return readBarcodes(ctx, barcodeReader, beep, slog.Default())
+					err := readBarcodes(ctx, barcodeReader, beep, slog.Default())
+					if err != nil && !errors.Is(err, context.Canceled) {
+						if err := homeAudio.Speak(ctx, "Error with barcode reader"); err != nil {
+							slog.Warn("homeAudio.Speak", "err", err)
+						}
+					}
+					return err
 				})
 			}
 
 			tasks.Start("webui", func(ctx context.Context) error {
 				return webUI(ctx, todo, slog.Default())
 			})
-
-			homeAudio := homeaudioclient.New(homeaudioclient.HomeFn61)
 
 			for {
 				select {
