@@ -5,9 +5,9 @@ import (
 	"context"
 	"fmt"
 	"sort"
-	"time"
 
 	"github.com/function61/gokit/net/http/ezhttp"
+	"github.com/joonas-fi/shopping-list-manager/pkg/taskmanager"
 )
 
 // https://developer.todoist.com/api/v1/
@@ -17,38 +17,14 @@ import (
 // 	URL  string `json:"url"`
 // }
 
-type Task struct {
-	ID          string    `json:"id"`
-	Order       int       `json:"order,omitempty"`       // (ONLY USED WHEN CREATING - GENIUS DESIGN!!!!) order within this project. on creation need omitempty to not set 0 (= which would be first on list).
-	ChildOrder  int       `json:"child_order,omitempty"` // (ONLY USED WHEN LISTING  - GENIUS DESIGN!!!!) order within this project (named "child" even though the perspective is this task, more apt would've been "order_in_parent").
-	Content     string    `json:"content"`
-	Description string    `json:"description"`
-	CompletedAt bool      `json:"completed_at,omitempty"`
-	AddedAt     time.Time `json:"added_at,omitempty"`
-	// URL         string    `json:"url"`
-	Due *DueSpec `json:"due"` // only present for ones that have due date
-
-	ProjectID string `json:"project_id"`
-}
-
-// returns 0 if no due date
-// NOTE: returned value can be negative
-func (t Task) OverdueAmount(now time.Time) time.Duration {
-	if t.Due != nil {
-		return t.Due.Overdue(now)
-	} else {
-		return time.Duration(0)
-	}
-}
-
-type DueSpec struct {
-	Recurring bool          `json:"is_recurring"`
-	Date      JSONPlainDate `json:"date"` // looks like: 2021-01-15
-}
-
-// NOTE: returned value can be negative
-func (d DueSpec) Overdue(now time.Time) time.Duration {
-	return now.Sub(d.Date.Time)
+type task struct {
+	ID          string `json:"id"`
+	Order       int    `json:"order,omitempty"`       // (ONLY USED WHEN CREATING - GENIUS DESIGN!!!!) order within this project. on creation need omitempty to not set 0 (= which would be first on list).
+	ChildOrder  int    `json:"child_order,omitempty"` // (ONLY USED WHEN LISTING  - GENIUS DESIGN!!!!) order within this project (named "child" even though the perspective is this task, more apt would've been "order_in_parent").
+	Content     string `json:"content"`
+	Description string `json:"description"`
+	CompletedAt bool   `json:"completed_at,omitempty"`
+	ProjectID   string `json:"project_id"`
 }
 
 type paginated[T any] struct {
@@ -56,13 +32,16 @@ type paginated[T any] struct {
 	NextCursor *string `json:"next_cursor"`
 }
 
-func NewClient(token string) *Client {
-	return &Client{token}
+func NewClient(token string, projectID string) *Client {
+	return &Client{token, projectID}
 }
 
 type Client struct {
-	token string
+	token     string
+	projectID string
 }
+
+var _ taskmanager.Manager = (*Client)(nil)
 
 // func (t *Client) Project(ctx context.Context, id int64) (*Project, error) {
 // 	project := &Project{}
@@ -77,18 +56,18 @@ type Client struct {
 // 	return project, nil
 // }
 
-func (t *Client) TasksByProject(ctx context.Context, projectID string, now time.Time) ([]Task, error) {
-	tasksPaginated := paginated[Task]{}
+func (t *Client) Tasks(ctx context.Context) ([]taskmanager.Task, error) {
+	tasksPaginated := paginated[task]{}
 
-	if _, err := ezhttp.Get(ctx, fmt.Sprintf("https://api.todoist.com/api/v1/tasks?project_id=%s&limit=200", projectID),
+	if _, err := ezhttp.Get(ctx, fmt.Sprintf("https://api.todoist.com/api/v1/tasks?project_id=%s&limit=200", t.projectID),
 		ezhttp.AuthBearer(t.token),
 		ezhttp.RespondsJSONAllowUnknownFields(&tasksPaginated),
 	); err != nil {
-		return nil, fmt.Errorf("TasksByProject: %w", err)
+		return nil, fmt.Errorf("Tasks: %w", err)
 	}
 
 	if cursor := tasksPaginated.NextCursor; cursor != nil {
-		return nil, fmt.Errorf("TasksByProject: got paginated results which we don't yet support: %s", *cursor)
+		return nil, fmt.Errorf("Tasks: got paginated results which we don't yet support: %s", *cursor)
 	}
 
 	tasks := tasksPaginated.Results // unfuck
@@ -98,13 +77,27 @@ func (t *Client) TasksByProject(ctx context.Context, projectID string, now time.
 		return tasks[i].ChildOrder < tasks[j].ChildOrder
 	})
 
-	return tasks, nil
+	result := make([]taskmanager.Task, len(tasks))
+	for i, task := range tasks {
+		result[i] = taskmanager.Task{
+			ID:          task.ID,
+			Title:       task.Content,
+			Description: task.Description,
+		}
+	}
+
+	return result, nil
 }
 
-func (t *Client) CreateTask(ctx context.Context, task Task) error {
+func (t *Client) CreateTask(ctx context.Context, newTask taskmanager.Task) error {
 	if _, err := ezhttp.Post(ctx, "https://api.todoist.com/api/v1/tasks",
 		ezhttp.AuthBearer(t.token),
-		ezhttp.SendJSON(task),
+		ezhttp.SendJSON(task{
+			Content:     newTask.Title,
+			Description: newTask.Description,
+			ProjectID:   t.projectID,
+			Order:       newTask.Order,
+		}),
 	); err != nil {
 		return fmt.Errorf("CreateTask: %w", err)
 	}
@@ -112,11 +105,14 @@ func (t *Client) CreateTask(ctx context.Context, task Task) error {
 	return nil
 }
 
-func (t *Client) UpdateTask(ctx context.Context, task Task) error {
+func (t *Client) UpdateTask(ctx context.Context, updatedTask taskmanager.Task) error {
 	// POST to update task, genius 👍
-	if _, err := ezhttp.Post(ctx, fmt.Sprintf("https://api.todoist.com/api/v1/tasks/%s", task.ID),
+	if _, err := ezhttp.Post(ctx, fmt.Sprintf("https://api.todoist.com/api/v1/tasks/%s", updatedTask.ID),
 		ezhttp.AuthBearer(t.token),
-		ezhttp.SendJSON(task),
+		ezhttp.SendJSON(task{
+			Content:     updatedTask.Title,
+			Description: updatedTask.Description,
+		}),
 	); err != nil {
 		return fmt.Errorf("UpdateTask: %w", err)
 	}
