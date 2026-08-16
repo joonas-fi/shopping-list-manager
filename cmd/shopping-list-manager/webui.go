@@ -15,7 +15,7 @@ import (
 	"sort"
 
 	"github.com/function61/gokit/net/http/httputils"
-	"github.com/joonas-fi/shopping-list-manager/pkg/todoist"
+	"github.com/joonas-fi/shopping-list-manager/pkg/taskmanager"
 	"github.com/samber/lo"
 )
 
@@ -26,7 +26,7 @@ const (
 	appHomeRoute = "/shopping-list-manager/"
 )
 
-func webUI(ctx context.Context, todo *todoist.Client, logger *slog.Logger) error {
+func webUI(ctx context.Context, manager taskmanager.Manager, logger *slog.Logger) error {
 	templates, err := template.ParseFS(templateFiles, "*.html")
 	if err != nil {
 		return err
@@ -43,7 +43,7 @@ func webUI(ctx context.Context, todo *todoist.Client, logger *slog.Logger) error
 
 		if beep != "" {
 			output := func() string {
-				if _, err := handleBeep(r.Context(), beep, logger, todo, func(_ string) {}); err != nil {
+				if _, err := handleBeep(r.Context(), beep, logger, manager, func(_ string) {}); err != nil {
 					return err.Error()
 				} else {
 					return "ok"
@@ -147,7 +147,7 @@ func webUI(ctx context.Context, todo *todoist.Client, logger *slog.Logger) error
 		item.ProductCategory = r.FormValue("product_category")
 		item.Notes = r.FormValue("notes")
 
-		if err := recordMissAndStoreToLocalDB(r.Context(), barcode, item, todo); err != nil {
+		if err := recordMissAndStoreToLocalDB(r.Context(), barcode, item, manager); err != nil {
 			return err
 		}
 

@@ -18,7 +18,9 @@ import (
 	"github.com/function61/gokit/os/osutil"
 	"github.com/function61/gokit/sync/taskrunner"
 	"github.com/joonas-fi/home-audio/pkg/homeaudioclient"
+	"github.com/joonas-fi/shopping-list-manager/pkg/caldav"
 	"github.com/joonas-fi/shopping-list-manager/pkg/googlesearch"
+	"github.com/joonas-fi/shopping-list-manager/pkg/taskmanager"
 	"github.com/joonas-fi/shopping-list-manager/pkg/todoist"
 	"github.com/samber/lo"
 	"github.com/spf13/cobra"
@@ -36,7 +38,7 @@ func main() {
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 
-			todo, err := getClient()
+			manager, err := getTaskManager()
 			if err != nil {
 				return err
 			}
@@ -66,7 +68,7 @@ func main() {
 			}
 
 			tasks.Start("webui", func(ctx context.Context) error {
-				return webUI(ctx, todo, slog.Default())
+				return webUI(ctx, manager, slog.Default())
 			})
 
 			for {
@@ -74,7 +76,7 @@ func main() {
 				case err := <-tasks.Done():
 					return err
 				case barcode := <-beep:
-					details, err := handleBeep(ctx, barcode, slog.Default(), todo, func(progressNotification string) {
+					details, err := handleBeep(ctx, barcode, slog.Default(), manager, func(progressNotification string) {
 						if err := homeAudio.Speak(ctx, progressNotification); err != nil {
 							speakAndLogIfFailed(ctx, progressNotification, homeAudio)
 						}
@@ -113,11 +115,11 @@ func main() {
 		Short: "Act as though a barcode was scanned. Example input: 6408180733659",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			todo, err := getClient()
+			manager, err := getTaskManager()
 			if err != nil {
 				return err
 			}
-			_, err = handleBeep(cmd.Context(), args[0], slog.Default(), todo, func(_ string) {})
+			_, err = handleBeep(cmd.Context(), args[0], slog.Default(), manager, func(_ string) {})
 			return err
 		},
 	})
@@ -127,12 +129,12 @@ func main() {
 		Short: "List misses",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			todo, err := getClient()
+			manager, err := getTaskManager()
 			if err != nil {
 				return err
 			}
 
-			misses, err := listMisses(cmd.Context(), todo)
+			misses, err := listMisses(cmd.Context(), manager)
 			if err != nil {
 				return err
 			}
@@ -153,19 +155,19 @@ func main() {
 			barcode := args[0]
 			productName := args[1]
 
-			todo, err := getClient()
+			manager, err := getTaskManager()
 			if err != nil {
 				return err
 			}
 
-			return recordMissAndStoreToLocalDB(cmd.Context(), barcode, newProductDetails(productName, ""), todo)
+			return recordMissAndStoreToLocalDB(cmd.Context(), barcode, newProductDetails(productName, ""), manager)
 		},
 	})
 
 	cli.Execute(app)
 }
 
-func handleBeep(ctx context.Context, barcode string, logger *slog.Logger, todo *todoist.Client, progressNotify func(string)) (*productDetails, error) {
+func handleBeep(ctx context.Context, barcode string, logger *slog.Logger, manager taskmanager.Manager, progressNotify func(string)) (*productDetails, error) {
 	withErr := func(err error) (*productDetails, error) { return nil, fmt.Errorf("handleBeep: %w", err) }
 
 	// better reload this on every beep so that if DB has been updated, the changes are reflected
@@ -175,7 +177,7 @@ func handleBeep(ctx context.Context, barcode string, logger *slog.Logger, todo *
 	}
 
 	details, err := func() (productDetails, error) {
-		details, err := resolveProductDetailsByBarcode(ctx, barcode, db, todo, progressNotify, logger)
+		details, err := resolveProductDetailsByBarcode(ctx, barcode, db, manager, progressNotify, logger)
 		if err != nil {
 			slog.Error("handleBeep: unable to resolve", "barcode", barcode, "err", err)
 
@@ -201,20 +203,15 @@ func handleBeep(ctx context.Context, barcode string, logger *slog.Logger, todo *
 		"ProductName", details.Name,
 	)
 
-	if err := addProductNameToShoppingList(ctx, details, createDescriptionMarkdown(barcode), todo); err != nil {
+	if err := addProductNameToShoppingList(ctx, details, createDescriptionMarkdown(barcode), manager); err != nil {
 		return withErr(err)
 	}
 
 	return &details, nil
 }
 
-func recordMissAndStoreToLocalDB(ctx context.Context, barcode string, product productDetails, todo *todoist.Client) error {
-	projectID, err := getTodoistProjectID()
-	if err != nil {
-		return err
-	}
-
-	existingTasks, err := todo.TasksByProject(ctx, projectID, time.Now())
+func recordMissAndStoreToLocalDB(ctx context.Context, barcode string, product productDetails, manager taskmanager.Manager) error {
+	existingTasks, err := manager.Tasks(ctx)
 	if err != nil {
 		return err
 	}
@@ -222,10 +219,10 @@ func recordMissAndStoreToLocalDB(ctx context.Context, barcode string, product pr
 	taskNameForUnnamed := taskNameForUnnamedBarcode(barcode)
 
 	// rename current tasks that refer to this unnamed task
-	for _, missing := range lo.Filter(existingTasks, func(t todoist.Task, _ int) bool { return t.Content == taskNameForUnnamed }) {
-		missing.Content = product.Name
+	for _, missing := range lo.Filter(existingTasks, func(t taskmanager.Task, _ int) bool { return t.Title == taskNameForUnnamed }) {
+		missing.Title = product.Name
 
-		if err := todo.UpdateTask(ctx, missing); err != nil {
+		if err := manager.UpdateTask(ctx, missing); err != nil {
 			return err
 		}
 	}
@@ -241,7 +238,7 @@ func recordMissAndStoreToLocalDB(ctx context.Context, barcode string, product pr
 	return saveDB(*db)
 }
 
-func resolveProductDetailsByBarcode(ctx context.Context, barcode string, resolveDB *LocalDB, todo *todoist.Client, progressNotify func(string), logger *slog.Logger) (*productDetails, error) {
+func resolveProductDetailsByBarcode(ctx context.Context, barcode string, resolveDB *LocalDB, manager taskmanager.Manager, progressNotify func(string), logger *slog.Logger) (*productDetails, error) {
 	withErr := func(err error) (*productDetails, error) {
 		return nil, fmt.Errorf("resolveProductDetailsByBarcode: %w", err)
 	}
@@ -297,7 +294,7 @@ func resolveProductDetailsByBarcode(ctx context.Context, barcode string, resolve
 		return result
 	}()
 
-	if err := recordMissAndStoreToLocalDB(ctx, barcode, *product, todo); err != nil {
+	if err := recordMissAndStoreToLocalDB(ctx, barcode, *product, manager); err != nil {
 		// this is not critical error in context of this function's task
 		logger.Error("recordMissAndStoreToLocalDB", "err", err)
 	}
@@ -309,12 +306,7 @@ var (
 	errItemAlreadyOnShoppingList = errors.New("requested productName already on the list")
 )
 
-func addProductNameToShoppingList(ctx context.Context, product productDetails, description string, todo *todoist.Client) error {
-	projectID, err := getTodoistProjectID()
-	if err != nil {
-		return err
-	}
-
+func addProductNameToShoppingList(ctx context.Context, product productDetails, description string, manager taskmanager.Manager) error {
 	category, categoryIdx := resolveProductCategory(product.ProductCategory)
 
 	taskName, order := func() (string, int) {
@@ -325,36 +317,30 @@ func addProductNameToShoppingList(ctx context.Context, product productDetails, d
 		}
 	}()
 
-	existingTasks, err := todo.TasksByProject(ctx, projectID, time.Now())
+	existingTasks, err := manager.Tasks(ctx)
 	if err != nil {
 		return err
 	}
 
-	if _, alreadyOnList := lo.Find(existingTasks, func(t todoist.Task) bool { return t.Content == taskName }); alreadyOnList {
+	if _, alreadyOnList := lo.Find(existingTasks, func(t taskmanager.Task) bool { return t.Title == taskName }); alreadyOnList {
 		return errItemAlreadyOnShoppingList
 	}
 
-	return todo.CreateTask(ctx, todoist.Task{
-		Content:     taskName,
+	return manager.CreateTask(ctx, taskmanager.Task{
+		Title:       taskName,
 		Description: description,
-		ProjectID:   projectID,
 		Order:       order,
 	})
 }
 
-func listMisses(ctx context.Context, todo *todoist.Client) ([]string, error) {
-	projectID, err := getTodoistProjectID()
+func listMisses(ctx context.Context, manager taskmanager.Manager) ([]string, error) {
+	existingTasks, err := manager.Tasks(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	existingTasks, err := todo.TasksByProject(ctx, projectID, time.Now())
-	if err != nil {
-		return nil, err
-	}
-
-	return lo.FilterMap(existingTasks, func(t todoist.Task, _ int) (string, bool) {
-		match := identifyMissRe.FindStringSubmatch(t.Content)
+	return lo.FilterMap(existingTasks, func(t taskmanager.Task, _ int) (string, bool) {
+		match := identifyMissRe.FindStringSubmatch(t.Title)
 		if match == nil {
 			return "", false
 		}
@@ -378,14 +364,37 @@ func createDescriptionMarkdown(barcode string) string {
 
 var identifyMissRe = regexp.MustCompile(`^unrecognized barcode\[([0-9]+)\]$`)
 
-func getClient() (*todoist.Client, error) {
-	tok, err := osutil.GetenvRequired("TODOIST_TOKEN")
+func getTaskManager() (taskmanager.Manager, error) {
+	switch provider := cmp.Or(os.Getenv("TASK_MANAGER"), "todoist"); provider {
+	case "todoist":
+		token, err := osutil.GetenvRequired("TODOIST_TOKEN")
+		if err != nil {
+			return nil, err
+		}
+		projectID, err := osutil.GetenvRequired("TODOIST_PROJECT_ID")
+		if err != nil {
+			return nil, err
+		}
 
-	return todoist.NewClient(tok), err
-}
+		return todoist.NewClient(token, projectID), nil
+	case "caldav":
+		collectionURI, err := osutil.GetenvRequired("CALDAV_URI")
+		if err != nil {
+			return nil, err
+		}
+		username, err := osutil.GetenvRequired("CALDAV_USERNAME")
+		if err != nil {
+			return nil, err
+		}
+		password, err := osutil.GetenvRequired("CALDAV_PASSWORD")
+		if err != nil {
+			return nil, err
+		}
 
-func getTodoistProjectID() (string, error) {
-	return osutil.GetenvRequired("TODOIST_PROJECT_ID")
+		return caldav.NewClient(collectionURI, username, password)
+	default:
+		return nil, fmt.Errorf("unsupported TASK_MANAGER %q (expected todoist or caldav)", provider)
+	}
 }
 
 func newProductDetails(productName string, link string) productDetails {
