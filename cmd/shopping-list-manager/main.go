@@ -59,9 +59,7 @@ func main() {
 				tasks.Start("readBarcodes", func(ctx context.Context) error {
 					err := readBarcodes(ctx, barcodeReader, beep, slog.Default())
 					if err != nil && !errors.Is(err, context.Canceled) {
-						if err := homeAudio.Speak(ctx, "Error with barcode reader"); err != nil {
-							slog.Warn("homeAudio.Speak", "err", err)
-						}
+						speakAndLogIfFailed(ctx, "Error with barcode reader", homeAudio)
 					}
 					return err
 				})
@@ -76,7 +74,11 @@ func main() {
 				case err := <-tasks.Done():
 					return err
 				case barcode := <-beep:
-					details, err := handleBeep(ctx, barcode, slog.Default(), todo)
+					details, err := handleBeep(ctx, barcode, slog.Default(), todo, func(progressNotification string) {
+						if err := homeAudio.Speak(ctx, progressNotification); err != nil {
+							speakAndLogIfFailed(ctx, progressNotification, homeAudio)
+						}
+					})
 
 					audioFeedback := func() string {
 						if err != nil {
@@ -115,7 +117,7 @@ func main() {
 			if err != nil {
 				return err
 			}
-			_, err = handleBeep(cmd.Context(), args[0], slog.Default(), todo)
+			_, err = handleBeep(cmd.Context(), args[0], slog.Default(), todo, func(_ string) {})
 			return err
 		},
 	})
@@ -163,7 +165,7 @@ func main() {
 	cli.Execute(app)
 }
 
-func handleBeep(ctx context.Context, barcode string, logger *slog.Logger, todo *todoist.Client) (*productDetails, error) {
+func handleBeep(ctx context.Context, barcode string, logger *slog.Logger, todo *todoist.Client, progressNotify func(string)) (*productDetails, error) {
 	withErr := func(err error) (*productDetails, error) { return nil, fmt.Errorf("handleBeep: %w", err) }
 
 	// better reload this on every beep so that if DB has been updated, the changes are reflected
@@ -173,7 +175,7 @@ func handleBeep(ctx context.Context, barcode string, logger *slog.Logger, todo *
 	}
 
 	details, err := func() (productDetails, error) {
-		details, err := resolveProductDetailsByBarcode(ctx, barcode, db, todo, logger)
+		details, err := resolveProductDetailsByBarcode(ctx, barcode, db, todo, progressNotify, logger)
 		if err != nil {
 			slog.Error("handleBeep: unable to resolve", "barcode", barcode, "err", err)
 
@@ -239,7 +241,7 @@ func recordMissAndStoreToLocalDB(ctx context.Context, barcode string, product pr
 	return saveDB(*db)
 }
 
-func resolveProductDetailsByBarcode(ctx context.Context, barcode string, resolveDB *LocalDB, todo *todoist.Client, logger *slog.Logger) (*productDetails, error) {
+func resolveProductDetailsByBarcode(ctx context.Context, barcode string, resolveDB *LocalDB, todo *todoist.Client, progressNotify func(string), logger *slog.Logger) (*productDetails, error) {
 	withErr := func(err error) (*productDetails, error) {
 		return nil, fmt.Errorf("resolveProductDetailsByBarcode: %w", err)
 	}
@@ -263,6 +265,9 @@ func resolveProductDetailsByBarcode(ctx context.Context, barcode string, resolve
 		// which would lead to ambiguities. just tested with a Lidl toast and that resulted in wedding ring..
 		return withErr(fmt.Errorf("length of barcode so short (%d) it implies store-internal barcode - bailing out", l))
 	}
+
+	// this takes a good while so good to inform the user that we're making progress
+	progressNotify("Looking up product details")
 
 	searchEngine, err := googlesearch.New()
 	if err != nil {
@@ -388,5 +393,11 @@ func newProductDetails(productName string, link string) productDetails {
 		Name:         productName,
 		Link:         link,
 		FirstScanned: Pointer(time.Now().UTC()),
+	}
+}
+
+func speakAndLogIfFailed(ctx context.Context, phrase string, client *homeaudioclient.Client) {
+	if err := client.Speak(ctx, phrase); err != nil {
+		slog.Error("client.Speak", "err", err, "phrase", phrase)
 	}
 }
