@@ -152,6 +152,7 @@ func webUI(ctx context.Context, todo *todoist.Client, logger *slog.Logger) error
 		}
 
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		//nolint:gosec // not XSS because plaintext
 		_, err = fmt.Fprintf(w, "updated: %s", item.Name)
 		return err
 	}))

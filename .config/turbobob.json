@@ -6,7 +6,7 @@
 	"builders": [
 		{
 			"name": "default",
-			"uses": "docker://fn61/buildkit-golang:20251124_1405_720e0dc0",
+			"uses": "docker://fn61/buildkit-golang:20260604_1344_ff654e98",
 			"dev_http_ingress": "80",
 			"commands": {
 				"build": ["build-go-project.sh", "--directory=cmd/shopping-list-manager/", "--binary-basename=shopping-list-manager"],
