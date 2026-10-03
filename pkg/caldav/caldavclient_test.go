@@ -87,7 +87,7 @@ func TestCreateTaskWritesVTODO(t *testing.T) {
 			t.Error("created VTODO lacks UID or DTSTAMP")
 		}
 		if component.Props.Get(ical.PropPriority) != nil {
-			t.Error("Todoist ordering must not be mapped to VTODO priority")
+			t.Error("task ordering must not be mapped to VTODO priority")
 		}
 		w.WriteHeader(http.StatusCreated)
 	}))

@@ -51,7 +51,7 @@ How to run
 First source `app.env` (which has the ENV variables from the configuration section), then:
 
 ```shell
-docker run --rm -it --device /dev/input/by-id/usb-NT_USB_Keyboard-event-kbd:/dev/barcode-reader -e TASK_MANAGER -e OPENAI_API_KEY -e TODOIST_TOKEN -e TODOIST_PROJECT_ID -e CALDAV_URI -e CALDAV_USERNAME -e CALDAV_PASSWORD -e GOOGLE_SEARCH_CUSTOM_SEARCH_ENGINE_ID -e GOOGLE_SEARCH_API_KEY ghcr.io/joonas-fi/shopping-list-manager:latest
+docker run --rm -it --device /dev/input/by-id/usb-NT_USB_Keyboard-event-kbd:/dev/barcode-reader -e OPENAI_API_KEY -e CALDAV_URI -e CALDAV_USERNAME -e CALDAV_PASSWORD -e GOOGLE_SEARCH_CUSTOM_SEARCH_ENGINE_ID -e GOOGLE_SEARCH_API_KEY ghcr.io/joonas-fi/shopping-list-manager:latest
 ```
 
 
@@ -70,23 +70,14 @@ You'll need to configure ENV variables:
 
 - `BARCODE_READER` (example `/dev/input/by-id/usb-NT_USB_Keyboard-event-kbd`)
 - `OPENAI_API_KEY` (create [here](https://platform.openai.com/api-keys))
-- `TASK_MANAGER` (`todoist` or `caldav`; optional and defaults to `todoist`)
+- `CALDAV_URI` full URI of the task calendar collection (example `https://baikal.example.com/dav.php/calendars/yhteinen/shopping-list/`)
+- `CALDAV_USERNAME`
+- `CALDAV_PASSWORD`
 - `GOOGLE_SEARCH_CUSTOM_SEARCH_ENGINE_ID`
 - `GOOGLE_SEARCH_API_KEY` (get [here](https://developers.google.com/custom-search/v1/overview))
 - `WEBAPP_BASEURL` (optional) base URL of the web app (so we can make links back to it)
 
-When using Todoist:
-
-- `TODOIST_TOKEN`
-- `TODOIST_PROJECT_ID`
-
-When using CalDAV VTODOs:
-
-- `CALDAV_URI` full URI of the task calendar collection (example `https://baikal.example.com/dav.php/calendars/yhteinen/shopping-list/`)
-- `CALDAV_USERNAME`
-- `CALDAV_PASSWORD`
-
-The CalDAV integration uses standard VTODO resources and HTTP Basic authentication. Todoist's custom project ordering has no interoperable VTODO equivalent, so CalDAV clients control task ordering.
+The application uses standard CalDAV VTODO resources and HTTP Basic authentication. CalDAV clients control task ordering.
 
 
 Resolving unknown barcodes
@@ -101,7 +92,7 @@ However those are either bad (only have small subset of real-world barcodes) or 
 External services
 -----------------
 
-- Todoist or a CalDAV server with VTODO support (for example Baikal)
+- A CalDAV server with VTODO support (for example Baikal)
 - For resolving unknown barcodes:
 	* Google
 	* ChatGPT

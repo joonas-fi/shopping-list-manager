@@ -21,7 +21,6 @@ import (
 	"github.com/joonas-fi/shopping-list-manager/pkg/caldav"
 	"github.com/joonas-fi/shopping-list-manager/pkg/googlesearch"
 	"github.com/joonas-fi/shopping-list-manager/pkg/taskmanager"
-	"github.com/joonas-fi/shopping-list-manager/pkg/todoist"
 	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 )
@@ -365,36 +364,20 @@ func createDescriptionMarkdown(barcode string) string {
 var identifyMissRe = regexp.MustCompile(`^unrecognized barcode\[([0-9]+)\]$`)
 
 func getTaskManager() (taskmanager.Manager, error) {
-	switch provider := cmp.Or(os.Getenv("TASK_MANAGER"), "todoist"); provider {
-	case "todoist":
-		token, err := osutil.GetenvRequired("TODOIST_TOKEN")
-		if err != nil {
-			return nil, err
-		}
-		projectID, err := osutil.GetenvRequired("TODOIST_PROJECT_ID")
-		if err != nil {
-			return nil, err
-		}
-
-		return todoist.NewClient(token, projectID), nil
-	case "caldav":
-		collectionURI, err := osutil.GetenvRequired("CALDAV_URI")
-		if err != nil {
-			return nil, err
-		}
-		username, err := osutil.GetenvRequired("CALDAV_USERNAME")
-		if err != nil {
-			return nil, err
-		}
-		password, err := osutil.GetenvRequired("CALDAV_PASSWORD")
-		if err != nil {
-			return nil, err
-		}
-
-		return caldav.NewClient(collectionURI, username, password)
-	default:
-		return nil, fmt.Errorf("unsupported TASK_MANAGER %q (expected todoist or caldav)", provider)
+	collectionURI, err := osutil.GetenvRequired("CALDAV_URI")
+	if err != nil {
+		return nil, err
 	}
+	username, err := osutil.GetenvRequired("CALDAV_USERNAME")
+	if err != nil {
+		return nil, err
+	}
+	password, err := osutil.GetenvRequired("CALDAV_PASSWORD")
+	if err != nil {
+		return nil, err
+	}
+
+	return caldav.NewClient(collectionURI, username, password)
 }
 
 func newProductDetails(productName string, link string) productDetails {
