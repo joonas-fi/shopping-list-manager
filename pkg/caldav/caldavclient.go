@@ -183,6 +183,10 @@ func primaryToDo(calendar *ical.Calendar) *ical.Component {
 }
 
 func isActive(component *ical.Component) (bool, error) {
+	if component.Props.Get(ical.PropCompleted) != nil {
+		return false, nil
+	}
+
 	status, err := component.Props.Text(ical.PropStatus)
 	if err != nil {
 		return false, err

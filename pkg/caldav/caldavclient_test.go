@@ -37,6 +37,7 @@ func TestTasksReturnsOnlyActiveVTODOs(t *testing.T) {
 		_, _ = io.WriteString(w, multiStatus(
 			calendarResponse("active.ics", vtodo("active", "Milk", "details", "NEEDS-ACTION", ""), "active-tag"),
 			calendarResponse("completed.ics", vtodo("completed", "Bread", "", "COMPLETED", ""), "completed-tag"),
+			calendarResponse("completed-at.ics", vtodo("completed-at", "Butter", "", "NEEDS-ACTION", "COMPLETED:20261003T000000Z\r\n"), "completed-at-tag"),
 			calendarResponse("percent.ics", vtodo("percent", "Eggs", "", "IN-PROCESS", "PERCENT-COMPLETE:100\r\n"), "percent-tag"),
 		))
 	}))
