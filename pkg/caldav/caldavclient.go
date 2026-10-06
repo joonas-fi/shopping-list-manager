@@ -128,7 +128,8 @@ func (c *Client) CreateTask(ctx context.Context, task taskmanager.Task) error {
 	toDo.Props.SetText(ical.PropUID, uid)
 	toDo.Props.SetText(ical.PropSummary, task.Title)
 	toDo.Props.SetText(ical.PropDescription, task.Description)
-	toDo.Props.SetText(ical.PropStatus, "NEEDS-ACTION")
+	// Omit `STATUS=NEEDS-ACTION` instead of relying on its conventional default because
+	// JTX Board would display that on every task, this is not configurable.
 	toDo.Props.SetDateTime(ical.PropDateTimeStamp, now)
 	toDo.Props.SetDateTime(ical.PropCreated, now)
 	toDo.Props.SetDateTime(ical.PropLastModified, now)

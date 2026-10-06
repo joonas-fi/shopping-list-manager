@@ -89,7 +89,9 @@ func TestCreateTaskWritesVTODO(t *testing.T) {
 		}
 		assertTextProp(t, component, ical.PropSummary, "Coffee")
 		assertTextProp(t, component, ical.PropDescription, "[Details](https://example.test/item)")
-		assertTextProp(t, component, ical.PropStatus, "NEEDS-ACTION")
+		if component.Props.Get(ical.PropStatus) != nil {
+			t.Error("created VTODO must not set STATUS")
+		}
 		if component.Props.Get(ical.PropUID) == nil || component.Props.Get(ical.PropDateTimeStamp) == nil {
 			t.Error("created VTODO lacks UID or DTSTAMP")
 		}
