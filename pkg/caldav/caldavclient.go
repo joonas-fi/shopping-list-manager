@@ -58,6 +58,24 @@ func NewClient(collectionURI string, username string, password string) (*Client,
 }
 
 func (c *Client) Tasks(ctx context.Context) ([]taskmanager.Task, error) {
+	// is VTODO and `COMPLETED` timestamp is missing and `STATUS` is not cancelled
+	activeTaskFilter := []webdavcaldav.CompFilter{{
+		Name: ical.CompToDo,
+		Props: []webdavcaldav.PropFilter{
+			{
+				Name:         ical.PropCompleted,
+				IsNotDefined: true,
+			},
+			{
+				Name: ical.PropStatus,
+				TextMatch: &webdavcaldav.TextMatch{
+					Text:            "CANCELLED",
+					NegateCondition: true,
+				},
+			},
+		},
+	}}
+
 	objects, err := c.caldav.QueryCalendar(ctx, c.collectionURL.Path, &webdavcaldav.CalendarQuery{
 		CompRequest: webdavcaldav.CalendarCompRequest{
 			Name:     ical.CompCalendar,
@@ -66,7 +84,7 @@ func (c *Client) Tasks(ctx context.Context) ([]taskmanager.Task, error) {
 		},
 		CompFilter: webdavcaldav.CompFilter{
 			Name:  ical.CompCalendar,
-			Comps: []webdavcaldav.CompFilter{{Name: ical.CompToDo}},
+			Comps: activeTaskFilter,
 		},
 	})
 	if err != nil {
@@ -77,14 +95,6 @@ func (c *Client) Tasks(ctx context.Context) ([]taskmanager.Task, error) {
 	for _, object := range objects {
 		component := primaryToDo(object.Data)
 		if component == nil {
-			continue
-		}
-
-		active, err := isActive(component)
-		if err != nil {
-			return nil, fmt.Errorf("parse CalDAV task %q: %w", object.Path, err)
-		}
-		if !active {
 			continue
 		}
 
@@ -180,33 +190,6 @@ func primaryToDo(calendar *ical.Calendar) *ical.Component {
 	}
 
 	return first
-}
-
-func isActive(component *ical.Component) (bool, error) {
-	if component.Props.Get(ical.PropCompleted) != nil {
-		return false, nil
-	}
-
-	status, err := component.Props.Text(ical.PropStatus)
-	if err != nil {
-		return false, err
-	}
-	switch strings.ToUpper(status) {
-	case "COMPLETED", "CANCELLED":
-		return false, nil
-	}
-
-	if percentComplete := component.Props.Get(ical.PropPercentComplete); percentComplete != nil {
-		percent, err := percentComplete.Int()
-		if err != nil {
-			return false, err
-		}
-		if percent >= 100 {
-			return false, nil
-		}
-	}
-
-	return true, nil
 }
 
 func newUID() (string, error) {

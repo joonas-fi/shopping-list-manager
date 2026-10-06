@@ -22,3 +22,7 @@ require (
 	golang.org/x/sys v0.6.0 // indirect
 	golang.org/x/text v0.16.0 // indirect
 )
+
+// Patched locally until https://github.com/emersion/go-webdav issues a fix for
+// caldav.PropFilter.IsNotDefined not being encoded in calendar-query requests.
+replace github.com/emersion/go-webdav => ./third_party/go-webdav

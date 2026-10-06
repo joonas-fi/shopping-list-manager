@@ -31,13 +31,17 @@ func TestTasksReturnsOnlyActiveVTODOs(t *testing.T) {
 		if !strings.Contains(string(body), `name="VTODO"`) {
 			t.Errorf("REPORT does not filter VTODOs: %s", body)
 		}
+		if !strings.Contains(string(body), `name="COMPLETED"`) || !strings.Contains(string(body), "is-not-defined") {
+			t.Errorf("REPORT does not exclude completed tasks: %s", body)
+		}
+		if !strings.Contains(string(body), `name="STATUS"`) || !strings.Contains(string(body), `negate-condition="yes">CANCELLED`) {
+			t.Errorf("REPORT does not exclude cancelled tasks: %s", body)
+		}
 
 		w.Header().Set("Content-Type", "application/xml")
 		w.WriteHeader(http.StatusMultiStatus)
 		_, _ = io.WriteString(w, multiStatus(
 			calendarResponse("active.ics", vtodo("active", "Milk", "details", "NEEDS-ACTION", ""), "active-tag"),
-			calendarResponse("completed.ics", vtodo("completed", "Bread", "", "COMPLETED", ""), "completed-tag"),
-			calendarResponse("completed-at.ics", vtodo("completed-at", "Butter", "", "NEEDS-ACTION", "COMPLETED:20261003T000000Z\r\n"), "completed-at-tag"),
 			calendarResponse("percent.ics", vtodo("percent", "Eggs", "", "IN-PROCESS", "PERCENT-COMPLETE:100\r\n"), "percent-tag"),
 		))
 	}))
@@ -48,11 +52,14 @@ func TestTasksReturnsOnlyActiveVTODOs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Tasks: %v", err)
 	}
-	if len(tasks) != 1 {
-		t.Fatalf("got %d tasks, want 1: %#v", len(tasks), tasks)
+	if len(tasks) != 2 {
+		t.Fatalf("got %d tasks, want 2: %#v", len(tasks), tasks)
 	}
 	if tasks[0].ID != testCollectionPath+"active.ics" || tasks[0].Title != "Milk" || tasks[0].Description != "details" {
 		t.Fatalf("unexpected task: %#v", tasks[0])
+	}
+	if tasks[1].ID != testCollectionPath+"percent.ics" || tasks[1].Title != "Eggs" {
+		t.Fatalf("unexpected task: %#v", tasks[1])
 	}
 }
 
